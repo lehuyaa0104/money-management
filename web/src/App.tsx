@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { GuestOnly, RequireAuth } from './features/auth/RouteGuards'
 import TabLayout from './shared/layout/TabLayout'
 import AddTransactionPage from './features/transactions/pages/AddTransactionPage'
+import AssetsPage from './features/assets/pages/AssetsPage'
 import AnalyticsPage from './features/analytics/pages/AnalyticsPage'
 import CategoriesPage from './features/categories/pages/CategoriesPage'
 import CategoriesProvider from './features/categories/CategoriesProvider'
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/budget" element={<BudgetPage />} />
               <Route path="/budget/goals" element={<GoalsPage />} />
+              <Route path="/budget/savings" element={<AssetsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
             <Route path="/transactions/new" element={<AddTransactionPage />} />
