@@ -1,0 +1,5 @@
+*.md
+Dockerfile
+.dockerignore
+.env*
+**/*_test.go

@@ -1,0 +1,74 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-primary: #16a34a;
+  --color-primary-dark: #15803d;
+  --color-primary-soft: #dcfce7;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-white text-gray-900 antialiased;
+  }
+}
+
+/* Padding that clears the iPhone notch / home indicator (needs viewport-fit=cover) */
+@utility pt-safe-hero {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 4rem);
+}
+@utility pt-safe-header {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+}
+@utility pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+}
+/* Bottom tab bar height + home indicator, so page content never hides under it */
+@utility pb-tabbar {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+}
+@utility pb-safe-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+}
+
+/* Floating action button sits just above the tab bar */
+@utility bottom-fab {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 5.75rem);
+}
+
+@theme {
+  --animate-sheet-up: sheet-up 220ms cubic-bezier(0.32, 0.72, 0, 1);
+
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-up {
+    animation: none;
+  }
+}
+
+@theme {
+  --animate-dialog-in: dialog-in 160ms ease-out;
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dialog-in {
+    animation: none;
+  }
+}
