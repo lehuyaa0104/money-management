@@ -19,6 +19,8 @@ type AuthService interface {
 	Login(ctx context.Context, username, password string) (*usecase.AuthResult, error)
 	Me(ctx context.Context, userID string) (*domain.User, error)
 	SetCycleStartDay(ctx context.Context, userID string, day int) (*domain.User, error)
+	ChangePassword(ctx context.Context, userID, current, next string) (*usecase.AuthResult, error)
+	Refresh(ctx context.Context, refreshToken string) (*usecase.AuthResult, error)
 }
 
 type AuthHandler struct{ auth AuthService }
@@ -45,9 +47,10 @@ type userResponse struct {
 }
 
 type authResponse struct {
-	Token     string       `json:"token"`
-	ExpiresAt time.Time    `json:"expiresAt"`
-	User      userResponse `json:"user"`
+	Token        string       `json:"token"`
+	ExpiresAt    time.Time    `json:"expiresAt"`
+	RefreshToken string       `json:"refreshToken"`
+	User         userResponse `json:"user"`
 }
 
 func toUserResponse(u *domain.User) userResponse {
@@ -55,7 +58,7 @@ func toUserResponse(u *domain.User) userResponse {
 }
 
 func toAuthResponse(r *usecase.AuthResult) authResponse {
-	return authResponse{Token: r.Token, ExpiresAt: r.ExpiresAt, User: toUserResponse(r.User)}
+	return authResponse{Token: r.Token, ExpiresAt: r.ExpiresAt, RefreshToken: r.RefreshToken, User: toUserResponse(r.User)}
 }
 
 // Register godoc: POST /api/v1/auth/register → 201 with a token, signed in right away.
@@ -117,4 +120,47 @@ func (h *AuthHandler) UpdateMe(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"user": toUserResponse(user)})
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// ChangePassword godoc: PUT /api/v1/auth/password {currentPassword, newPassword} (Bearer token)
+// → 200 {token, expiresAt, refreshToken, user}: a new pair for this device; every other session ends.
+// A wrong current password is 400 current_password_wrong.
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	var req changePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeBadRequest(c)
+		return
+	}
+	result, err := h.auth.ChangePassword(c.Request.Context(), middleware.UserID(c), req.CurrentPassword, req.NewPassword)
+	if err != nil {
+		WriteError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toAuthResponse(result))
+}
+
+type refreshRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+// Refresh godoc: POST /api/v1/auth/refresh {refreshToken} → 200 {token, expiresAt, refreshToken, user}
+// No Bearer token needed (the access token has usually expired). Each refresh token works once:
+// keep the new one. 401 if it is unknown, used or expired.
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req refreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeBadRequest(c)
+		return
+	}
+	result, err := h.auth.Refresh(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		WriteError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toAuthResponse(result))
 }

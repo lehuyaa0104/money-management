@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -41,6 +42,39 @@ func (r *TransactionRepository) List(ctx context.Context, userID string, f domai
 		out[i] = models[i].toDomain()
 	}
 	return out, nil
+}
+
+func (r *TransactionRepository) FindByID(ctx context.Context, userID, id string) (*domain.Transaction, error) {
+	var m transactionModel
+	err := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).Take(&m).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	tx := m.toDomain()
+	return &tx, nil
+}
+
+func (r *TransactionRepository) Update(ctx context.Context, tx *domain.Transaction) error {
+	m, err := toTransactionModel(tx)
+	if err != nil {
+		return err
+	}
+	res := r.db.WithContext(ctx).Model(&transactionModel{}).
+		Where("id = ? AND user_id = ?", tx.ID, tx.UserID).
+		Updates(map[string]any{
+			"category_id": m.CategoryID, "category_name": m.CategoryName, "type": m.Type, "amount": m.Amount,
+			"date": m.Date, "note": m.Note, "occurred_at": m.OccurredAt,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func (r *TransactionRepository) Delete(ctx context.Context, userID, id string) error {

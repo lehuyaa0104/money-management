@@ -7,6 +7,8 @@ export interface TransactionsContextValue {
   transactions: Transaction[]
   /** Saves on the server, then adds it to the list. Throws ApiError on failure (nothing is added). */
   createTransaction: (input: CreateTransactionInput) => Promise<Transaction>
+  /** Saves on the server, then replaces it in the list. Throws ApiError on failure (nothing changes). */
+  updateTransaction: (id: string, input: CreateTransactionInput) => Promise<Transaction>
   /** Deletes on the server, then removes it from the list. Throws ApiError on failure. */
   deleteTransaction: (id: string) => Promise<void>
 }

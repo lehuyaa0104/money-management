@@ -19,7 +19,8 @@ type Config struct {
 	DBTLS          string // go-sql-driver "tls" value: "", "true", "skip-verify", "preferred"
 	DBCACert       string // PEM; when set, the server certificate is verified against it
 	JWTSecret      string
-	JWTTTL         time.Duration
+	JWTTTL         time.Duration // access token lifetime
+	RefreshTTL     time.Duration // refresh token lifetime; opening the app within it keeps the user signed in
 	AllowedOrigins []string
 }
 
@@ -42,8 +43,11 @@ func Load() (*Config, error) {
 	if cfg.DBPort, err = strconv.Atoi(getenv("DB_PORT", "3306")); err != nil {
 		errs = append(errs, fmt.Errorf("DB_PORT: %w", err))
 	}
-	if cfg.JWTTTL, err = time.ParseDuration(getenv("JWT_TTL", "168h")); err != nil {
+	if cfg.JWTTTL, err = time.ParseDuration(getenv("JWT_TTL", "15m")); err != nil {
 		errs = append(errs, fmt.Errorf("JWT_TTL: %w", err))
+	}
+	if cfg.RefreshTTL, err = time.ParseDuration(getenv("REFRESH_TTL", "720h")); err != nil {
+		errs = append(errs, fmt.Errorf("REFRESH_TTL: %w", err))
 	}
 	for name, value := range map[string]string{"DB_USER": cfg.DBUser, "DB_PASSWORD": cfg.DBPassword, "DB_NAME": cfg.DBName, "JWT_SECRET": cfg.JWTSecret} {
 		if value == "" {

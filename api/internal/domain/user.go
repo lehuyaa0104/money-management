@@ -20,6 +20,9 @@ const (
 
 var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
+// A validation error (400), not 401: the session is fine, only the typed password is wrong.
+var ErrCurrentPasswordWrong = Validation("current_password_wrong", "Mật khẩu hiện tại không đúng")
+
 type User struct {
 	ID           string
 	Username     string
@@ -36,6 +39,7 @@ type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (*User, error)
 	FindByID(ctx context.Context, id string) (*User, error)
 	UpdateCycleStartDay(ctx context.Context, id string, day int) error
+	UpdatePasswordHash(ctx context.Context, id, hash string) error
 }
 
 func ValidateUsername(username string) error {

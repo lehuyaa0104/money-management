@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { useForm, useWatch, type FieldErrors } from 'react-hook-form'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { CalendarDays, ChevronDown, Clock, Tag, type LucideIcon } from 'lucide-react'
 import PageHeader from '@/shared/layout/PageHeader'
 import AmountKeypad from '@/features/transactions/components/AmountKeypad'
@@ -16,7 +16,7 @@ import { CATEGORY_ICONS, FALLBACK_ICON } from '@/features/categories/icons'
 import { useCategories } from '@/features/categories/useCategories'
 import { ApiError } from '@/shared/api/apiClient'
 import { cn } from '@/shared/utils/cn'
-import { formatFullDate, formatNumber, nowTime, toTimestamp, todayISO } from '@/shared/utils/format'
+import { formatFullDate, formatNumber, nowTime, toTimeValue, toTimestamp, todayISO } from '@/shared/utils/format'
 
 interface FormValues {
   type: TransactionType
@@ -74,14 +74,21 @@ function DetailRow({ icon: Icon, iconClass, label, value, children }: {
   )
 }
 
+/** Creates a transaction, or edits one at /transactions/:id/edit. */
 export default function AddTransactionPage() {
-  const { createTransaction } = useTransactions()
+  const { transactions, createTransaction, updateTransaction } = useTransactions()
   const navigate = useNavigate()
   const location = useLocation()
   const [params] = useSearchParams()
+  const { id } = useParams()
+  const editing = id ? transactions.find((t) => t.id === id) : undefined
 
-  // Read the clock once, when the page opens.
+  // Read the clock (or the transaction being edited) once, when the page opens.
   const [defaultValues] = useState<FormValues>(() => {
+    if (editing) {
+      const { type, amount, category, date, note, createdAt } = editing
+      return { type, amount: String(amount), category, date, time: toTimeValue(createdAt), note }
+    }
     const type = params.get('type') === 'income' ? 'income' : 'expense'
     // The category is picked once the user's categories have loaded (see the effect below).
     return { type, amount: '', category: '', date: todayISO(), time: nowTime(), note: '' }
@@ -114,11 +121,13 @@ export default function AddTransactionPage() {
   const optionNames = options.map((c) => c.name).join('\n')
 
   // After loading or switching type, keep the picked category if this type has it
-  // (a name can exist for both), otherwise pick the first one.
+  // (a name can exist for both), otherwise pick the first one. When editing, never
+  // pick one silently (e.g. its category was deleted): the user chooses.
+  const isEditing = editing !== undefined
   useEffect(() => {
     const names = optionNames ? optionNames.split('\n') : []
-    if (!names.includes(getValues('category'))) setValue('category', names[0] ?? '')
-  }, [optionNames, getValues, setValue])
+    if (!names.includes(getValues('category'))) setValue('category', isEditing ? '' : (names[0] ?? ''))
+  }, [optionNames, getValues, setValue, isEditing])
 
   const changeType = (next: TransactionType) => setValue('type', next)
 
@@ -143,15 +152,17 @@ export default function AddTransactionPage() {
       showToast(options.length === 0 ? noCategoryMessage : 'Vui lòng chọn danh mục')
       return
     }
+    const input = {
+      type: values.type,
+      amount: Number(values.amount),
+      categoryId,
+      date: values.date,
+      note: values.note.trim(),
+      occurredAt: toTimestamp(values.date, values.time),
+    }
     try {
-      await createTransaction({
-        type: values.type,
-        amount: Number(values.amount),
-        categoryId,
-        date: values.date,
-        note: values.note.trim(),
-        occurredAt: toTimestamp(values.date, values.time),
-      })
+      if (editing) await updateTransaction(editing.id, input)
+      else await createTransaction(input)
     } catch (err) {
       // Nothing was saved; keep what the user typed so they can retry.
       setError('root.server', { message: err instanceof ApiError ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại' })
@@ -162,6 +173,9 @@ export default function AddTransactionPage() {
     else navigate(-1)
   }
 
+  // A stale or mistyped edit link (e.g. the transaction was deleted).
+  if (id && !editing) return <Navigate to="/transactions" replace />
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit, onInvalid)}
@@ -170,7 +184,7 @@ export default function AddTransactionPage() {
     >
       {/* Fixed top: header, type switch and the amount being typed. */}
       <div className="shrink-0">
-        <PageHeader title="Giao dịch mới" back centered closeIcon />
+        <PageHeader title={editing ? 'Sửa giao dịch' : 'Giao dịch mới'} back centered closeIcon />
         <div className="px-5">
           <SegmentedControl label="Loại giao dịch" options={TYPE_OPTIONS} value={type} onChange={changeType} />
         </div>
@@ -306,7 +320,7 @@ export default function AddTransactionPage() {
           disabled={isSubmitting}
           className="mt-5 mb-4"
         >
-          {isSubmitting ? 'Đang lưu…' : style.save}
+          {isSubmitting ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : style.save}
         </Button>
       </div>
 

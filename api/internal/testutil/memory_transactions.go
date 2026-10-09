@@ -39,6 +39,29 @@ func (r *MemoryTransactions) List(_ context.Context, userID string, f domain.Tra
 	return out, nil
 }
 
+func (r *MemoryTransactions) FindByID(_ context.Context, userID, id string) (*domain.Transaction, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, t := range r.Transactions {
+		if t.ID == id && t.UserID == userID {
+			return &t, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *MemoryTransactions) Update(_ context.Context, tx *domain.Transaction) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i, t := range r.Transactions {
+		if t.ID == tx.ID && t.UserID == tx.UserID {
+			r.Transactions[i] = *tx
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
 func (r *MemoryTransactions) Delete(_ context.Context, userID, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

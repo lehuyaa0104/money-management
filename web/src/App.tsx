@@ -8,6 +8,7 @@ import CategoriesProvider from './features/categories/CategoriesProvider'
 import NewCategoryPage from './features/categories/pages/NewCategoryPage'
 import BudgetPage from './features/budgets/pages/BudgetPage'
 import GoalsPage from './features/goals/pages/GoalsPage'
+import ChangePasswordPage from './features/auth/pages/ChangePasswordPage'
 import CalendarPage from './features/transactions/pages/CalendarPage'
 import ComingSoonPage from './shared/pages/ComingSoonPage'
 import HomePage from './features/home/pages/HomePage'
@@ -34,12 +35,13 @@ export default function App() {
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
             <Route path="/transactions/new" element={<AddTransactionPage />} />
+            <Route path="/transactions/:id/edit" element={<AddTransactionPage />} />
             <Route path="/transfer" element={<ComingSoonPage title="Chuyển tiền" standalone />} />
             <Route path="/notifications" element={<ComingSoonPage title="Thông báo" standalone />} />
             <Route path="/accounts" element={<ComingSoonPage title="Tài khoản" standalone />} />
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/categories/new" element={<NewCategoryPage />} />
-            <Route path="/security" element={<ComingSoonPage title="Bảo mật" standalone />} />
+            <Route path="/security" element={<ChangePasswordPage />} />
             <Route path="/appearance" element={<ComingSoonPage title="Giao diện" standalone />} />
             <Route path="/assistant" element={<ComingSoonPage title="Trợ lý tài chính AI" standalone />} />
           </Route>

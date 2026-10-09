@@ -37,6 +37,16 @@ func (m *userModel) toDomain() *domain.User {
 	}
 }
 
+type refreshTokenModel struct {
+	Hash      string    `gorm:"type:char(64);primaryKey"` // hex SHA-256 of the token
+	UserID    string    `gorm:"type:char(36);not null;index"`
+	User      userModel `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	ExpiresAt time.Time `gorm:"type:datetime(3);not null"`
+	CreatedAt time.Time `gorm:"type:datetime(3);not null"`
+}
+
+func (refreshTokenModel) TableName() string { return "refresh_tokens" }
+
 type categoryModel struct {
 	ID     string    `gorm:"type:char(36);primaryKey"`
 	UserID string    `gorm:"type:char(36);not null;uniqueIndex:idx_categories_user_type_name,priority:1"`

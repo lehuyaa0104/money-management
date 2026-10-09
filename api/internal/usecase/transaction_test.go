@@ -159,3 +159,48 @@ func TestListTransactions(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateTransaction(t *testing.T) {
+	ctx := context.Background()
+	uc, repo, coffee, salary := newTransactions(t)
+	occurred := time.Date(2026, 10, 8, 2, 30, 0, 0, time.UTC)
+	tx, err := uc.Create(ctx, "u1", usecase.CreateTransactionInput{Type: "expense", Amount: 45000, CategoryID: coffee, Date: "2026-10-08", OccurredAt: &occurred})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := uc.Update(ctx, "u1", tx.ID, usecase.CreateTransactionInput{
+		Type: "income", Amount: 9000000, CategoryID: salary, Date: "2026-10-05", Note: " Lương tháng 9 ",
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.Type != "income" || updated.Amount != 9000000 || updated.CategoryName != "Lương" || updated.Date != "2026-10-05" ||
+		updated.Note != "Lương tháng 9" || !updated.OccurredAt.Equal(occurred) || !updated.CreatedAt.Equal(tx.CreatedAt) {
+		t.Fatalf("unexpected update (omitted occurredAt and createdAt must be kept): %+v", updated)
+	}
+	if stored := repo.Transactions[0]; stored.Amount != 9000000 || stored.CategoryID != salary {
+		t.Fatalf("not stored: %+v", stored)
+	}
+
+	valid := usecase.CreateTransactionInput{Type: "expense", Amount: 1000, CategoryID: coffee, Date: "2026-10-08"}
+	if _, err := uc.Update(ctx, "u2", tx.ID, valid); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("someone else's transaction = %v", err)
+	}
+	if _, err := uc.Update(ctx, "u1", "missing", valid); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("missing transaction = %v", err)
+	}
+	mismatch := valid
+	mismatch.CategoryID = salary
+	if _, err := uc.Update(ctx, "u1", tx.ID, mismatch); errCode(err) != "category_type_mismatch" {
+		t.Fatalf("type mismatch = %v", err)
+	}
+	zero := valid
+	zero.Amount = 0
+	if _, err := uc.Update(ctx, "u1", tx.ID, zero); errCode(err) != "amount_invalid" {
+		t.Fatalf("zero amount = %v", err)
+	}
+	if repo.Transactions[0].Amount != 9000000 {
+		t.Fatalf("a rejected update must not change the stored transaction: %+v", repo.Transactions[0])
+	}
+}

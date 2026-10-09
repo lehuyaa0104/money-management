@@ -44,8 +44,10 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		auth := api.Group("/auth")
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/login", authHandler.Login)
+		auth.POST("/refresh", authHandler.Refresh)
 		auth.GET("/me", middleware.RequireAuth(deps.TokenVerifier), authHandler.Me)
 		auth.PATCH("/me", middleware.RequireAuth(deps.TokenVerifier), authHandler.UpdateMe)
+		auth.PUT("/password", middleware.RequireAuth(deps.TokenVerifier), authHandler.ChangePassword)
 
 		categoryHandler := handler.NewCategoryHandler(deps.Categories)
 		categories := api.Group("/categories", middleware.RequireAuth(deps.TokenVerifier))
@@ -58,6 +60,7 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		transactions := api.Group("/transactions", middleware.RequireAuth(deps.TokenVerifier))
 		transactions.GET("", transactionHandler.List)
 		transactions.POST("", transactionHandler.Create)
+		transactions.PUT("/:id", transactionHandler.Update)
 		transactions.DELETE("/:id", transactionHandler.Delete)
 
 		budgetHandler := handler.NewBudgetHandler(deps.Budgets)

@@ -100,10 +100,15 @@ export function addMonths(month: string, n: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
-/** Current local time as "HH:mm" (the value format of <input type="time">). */
+/** Local time of an ISO timestamp as "HH:mm" (the value format of <input type="time">). */
+export function toTimeValue(isoTimestamp: string): string {
+  const date = new Date(isoTimestamp)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+/** Current local time as "HH:mm". */
 export function nowTime(): string {
-  const now = new Date()
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  return toTimeValue(new Date().toISOString())
 }
 
 /** Local "YYYY-MM-DD" + "HH:mm" → ISO timestamp. */

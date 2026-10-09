@@ -33,6 +33,10 @@ func (r *UserRepository) UpdateCycleStartDay(ctx context.Context, id string, day
 	return r.db.WithContext(ctx).Model(&userModel{}).Where("id = ?", id).Update("cycle_start_day", day).Error
 }
 
+func (r *UserRepository) UpdatePasswordHash(ctx context.Context, id, hash string) error {
+	return r.db.WithContext(ctx).Model(&userModel{}).Where("id = ?", id).Update("password_hash", hash).Error
+}
+
 func (r *UserRepository) findOne(ctx context.Context, query string, arg any) (*domain.User, error) {
 	var m userModel
 	err := r.db.WithContext(ctx).Where(query, arg).Take(&m).Error

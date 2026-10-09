@@ -68,7 +68,8 @@ func run(log *slog.Logger) error {
 	// show the same timestamp before and after a round trip through MySQL.
 	now := func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) }
 	authUsecase, err := usecase.NewAuthUsecase(
-		mysql.NewUserRepository(db), security.NewBcryptHasher(), jwtService, now, uuid.NewString,
+		mysql.NewUserRepository(db), mysql.NewRefreshTokenRepository(db), cfg.RefreshTTL,
+		security.NewBcryptHasher(), jwtService, now, uuid.NewString,
 	)
 	if err != nil {
 		return err

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { Transaction } from '@/features/transactions/types'
 import { useCategories } from '@/features/categories/useCategories'
 import { ApiError } from '@/shared/api/apiClient'
@@ -17,6 +18,7 @@ interface TransactionDetailSheetProps {
 }
 
 export default function TransactionDetailSheet({ transaction: t, onDelete, onClose }: TransactionDetailSheetProps) {
+  const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,9 +64,14 @@ export default function TransactionDetailSheet({ transaction: t, onDelete, onClo
             </div>
           </div>
         ) : (
-          <Button variant="outline" onClick={() => setConfirming(true)} className="text-red-600">
-            <Trash2 className="size-5" /> Xóa giao dịch
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" onClick={() => setConfirming(true)} className="text-red-600">
+              <Trash2 className="size-5" /> Xóa
+            </Button>
+            <Button onClick={() => navigate(`/transactions/${encodeURIComponent(t.id)}/edit`)}>
+              <Pencil className="size-5" /> Sửa
+            </Button>
+          </div>
         )
       }
     >

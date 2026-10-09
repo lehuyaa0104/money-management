@@ -5,10 +5,13 @@ import { ApiError } from '@/shared/api/apiClient'
 import Button from '@/shared/ui/Button'
 import Text from '@/shared/ui/Text'
 import { TransactionsContext, type TransactionsContextValue } from './TransactionsContext'
-import { createTransaction, deleteTransaction, listTransactions, toTransaction } from './transactionApi'
+import { createTransaction, deleteTransaction, listTransactions, toTransaction, updateTransaction } from './transactionApi'
 import type { Transaction } from './types'
 
 type Status = 'loading' | 'ready' | 'error'
+
+// Newest first (by date, then time), like the API returns the list.
+const newestFirst = (a: Transaction, b: Transaction) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
 
 /**
  * Layout route (inside RequireAuth): loads the signed-in user's transactions from
@@ -46,10 +49,12 @@ export default function TransactionsProvider() {
     transactions,
     createTransaction: async (input) => {
       const tx = toTransaction(await createTransaction(input))
-      // Keep the list newest first (by date, then time), like the API returns it.
-      setTransactions((prev) =>
-        [tx, ...prev].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
-      )
+      setTransactions((prev) => [tx, ...prev].sort(newestFirst))
+      return tx
+    },
+    updateTransaction: async (id, input) => {
+      const tx = toTransaction(await updateTransaction(id, input))
+      setTransactions((prev) => prev.map((t) => (t.id === id ? tx : t)).sort(newestFirst))
       return tx
     },
     deleteTransaction: async (id) => {

@@ -25,12 +25,18 @@ func (fakeTokens) Issue(userID string) (string, time.Time, error) {
 }
 
 func newAuth(t *testing.T) (*usecase.AuthUsecase, *testutil.MemoryUsers) {
+	clock := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	return newAuthAt(t, &clock)
+}
+
+// newAuthAt reads the time from *clock, so a test can move it forward.
+func newAuthAt(t *testing.T, clock *time.Time) (*usecase.AuthUsecase, *testutil.MemoryUsers) {
 	t.Helper()
 	users := &testutil.MemoryUsers{}
 	n := 0
 	newID := func() string { n++; return fmt.Sprintf("user-%d", n) }
-	now := func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }
-	uc, err := usecase.NewAuthUsecase(users, plainHasher{}, fakeTokens{}, now, newID)
+	now := func() time.Time { return *clock }
+	uc, err := usecase.NewAuthUsecase(users, &testutil.MemoryRefreshTokens{}, 30*24*time.Hour, plainHasher{}, fakeTokens{}, now, newID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,5 +153,72 @@ func TestSetCycleStartDay(t *testing.T) {
 	}
 	if _, err := uc.SetCycleStartDay(ctx, "deleted-user", 5); !errors.Is(err, domain.ErrUnauthorized) {
 		t.Fatalf("missing user = %v", err)
+	}
+}
+
+func TestChangePassword(t *testing.T) {
+	ctx := context.Background()
+	uc, _ := newAuth(t)
+	res, _ := uc.Register(ctx, usecase.RegisterInput{FullName: "A", Username: "demo_user", Password: "demo12345"})
+	id := res.User.ID
+
+	other, _ := uc.Login(ctx, "demo_user", "demo12345") // a second device
+
+	if _, err := uc.ChangePassword(ctx, id, "wrong-password", "newpass123"); errCode(err) != "current_password_wrong" {
+		t.Fatalf("wrong current = %v", err)
+	}
+	if _, err := uc.ChangePassword(ctx, id, "demo12345", "short"); errCode(err) != "password_length" {
+		t.Fatalf("short new = %v", err)
+	}
+	changed, err := uc.ChangePassword(ctx, id, "demo12345", "newpass123")
+	if err != nil || changed.RefreshToken == "" {
+		t.Fatalf("change: %v %+v", err, changed)
+	}
+	for name, token := range map[string]string{"registering device": res.RefreshToken, "other device": other.RefreshToken} {
+		if _, err := uc.Refresh(ctx, token); !errors.Is(err, domain.ErrUnauthorized) {
+			t.Fatalf("%s must be signed out after a password change: %v", name, err)
+		}
+	}
+	if _, err := uc.Refresh(ctx, changed.RefreshToken); err != nil {
+		t.Fatalf("this device keeps its session: %v", err)
+	}
+	if _, err := uc.Login(ctx, "demo_user", "demo12345"); !errors.Is(err, domain.ErrInvalidCredentials) {
+		t.Fatalf("old password still works: %v", err)
+	}
+	if _, err := uc.Login(ctx, "demo_user", "newpass123"); err != nil {
+		t.Fatalf("new password: %v", err)
+	}
+	if _, err := uc.ChangePassword(ctx, "deleted-user", "x", "newpass123"); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("missing user = %v", err)
+	}
+}
+
+func TestRefresh(t *testing.T) {
+	ctx := context.Background()
+	clock := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	uc, _ := newAuthAt(t, &clock)
+	res, _ := uc.Register(ctx, usecase.RegisterInput{FullName: "A", Username: "demo_user", Password: "demo12345"})
+
+	next, err := uc.Refresh(ctx, res.RefreshToken)
+	if err != nil || next.Token == "" || next.RefreshToken == "" || next.RefreshToken == res.RefreshToken || next.User.ID != res.User.ID {
+		t.Fatalf("refresh: %v %+v", err, next)
+	}
+	if _, err := uc.Refresh(ctx, res.RefreshToken); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("a refresh token must work only once: %v", err)
+	}
+	for _, bad := range []string{"", "not-a-token"} {
+		if _, err := uc.Refresh(ctx, bad); !errors.Is(err, domain.ErrUnauthorized) {
+			t.Fatalf("refresh %q = %v", bad, err)
+		}
+	}
+
+	clock = clock.Add(29 * 24 * time.Hour) // still within 30 days: rotating keeps the session alive
+	later, err := uc.Refresh(ctx, next.RefreshToken)
+	if err != nil {
+		t.Fatalf("refresh after 29 days: %v", err)
+	}
+	clock = clock.Add(30 * 24 * time.Hour)
+	if _, err := uc.Refresh(ctx, later.RefreshToken); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("expired refresh token = %v", err)
 	}
 }

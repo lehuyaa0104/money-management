@@ -26,9 +26,11 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 
 | Method | Path | Mô tả |
 |---|---|---|
-| `POST` | `/api/v1/auth/register` | `{fullName, username, password}` → `201 {token, expiresAt, user}` |
-| `POST` | `/api/v1/auth/login` | `{username, password}` → `200 {token, expiresAt, user}` |
+| `POST` | `/api/v1/auth/register` | `{fullName, username, password}` → `201 {token, expiresAt, refreshToken, user}` |
+| `POST` | `/api/v1/auth/login` | `{username, password}` → `200 {token, expiresAt, refreshToken, user}` |
+| `POST` | `/api/v1/auth/refresh` | `{refreshToken}` → `200 {token, expiresAt, refreshToken, user}`; không cần header `Authorization`. Mỗi refresh token chỉ dùng được **một lần**, phải lưu token mới (`401` nếu sai, đã dùng hoặc hết hạn) |
 | `GET` | `/api/v1/auth/me` | Header `Authorization: Bearer <token>` → `200 {user}` |
+| `PUT` | `/api/v1/auth/password` | `{currentPassword, newPassword}` → `200 {token, expiresAt, refreshToken, user}` (`400 current_password_wrong` nếu sai mật khẩu hiện tại). Mọi phiên đăng nhập khác bị huỷ |
 | `PATCH` | `/api/v1/auth/me` | `{cycleStartDay}` (1–31) → `200 {user}` — ngày bắt đầu chu kỳ tháng của user |
 | `GET` | `/api/v1/categories` | Danh mục của user (theo thứ tự tạo) → `{categories}` |
 | `POST` | `/api/v1/categories` | `{type, name, icon, color}` → `201 {category}` |
@@ -36,6 +38,7 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 | `DELETE` | `/api/v1/categories/:id` | Xoá danh mục của user → `204` (`404` nếu không tồn tại hoặc của người khác) |
 | `GET` | `/api/v1/transactions?from=&to=` | Giao dịch của user, mới nhất trước → `{transactions}`. `from`/`to` (`YYYY-MM-DD`, tính cả hai đầu) đều không bắt buộc |
 | `POST` | `/api/v1/transactions` | `{type, amount, categoryId, date, note?, occurredAt?}` → `201 {transaction}` |
+| `PUT` | `/api/v1/transactions/:id` | Cùng body như khi tạo → `200 {transaction}`; thay toàn bộ, bỏ `occurredAt` thì giữ giá trị cũ (`404` nếu không tồn tại hoặc của người khác) |
 | `DELETE` | `/api/v1/transactions/:id` | Xoá giao dịch của user → `204` (`404` nếu không tồn tại hoặc của người khác) |
 | `GET` | `/api/v1/budgets?month=YYYY-MM&startDay=` | Ngân sách của user kèm `spent` (đã chi trong chu kỳ đó) và `remaining` (= `limit − spent`, có thể âm) → `{month, budgets}`. `startDay` không bắt buộc, mặc định 1 |
 | `POST` | `/api/v1/budgets` | `{categoryId, limit}` → `201 {budget}` (hạn mức mỗi tháng cho một danh mục chi tiêu) |
@@ -48,6 +51,8 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 | `POST` | `/api/v1/goals/:id/withdraw` | `{amount}` → `200 {goal}` (rút ra; vượt `saved` → `400 withdraw_too_large`) |
 | `DELETE` | `/api/v1/goals/:id` | Xoá mục tiêu → `204` (`404` nếu không tồn tại hoặc của người khác) |
 | `GET` | `/healthz` | Kiểm tra server + kết nối database |
+
+Phiên đăng nhập: `token` (JWT, sống `JWT_TTL`, mặc định 15 phút) gửi kèm mọi request; khi hết hạn, gọi `/auth/refresh` với `refreshToken` (sống `REFRESH_TTL`, mặc định 30 ngày, tính từ lần refresh gần nhất) để lấy cặp mới. Server chỉ lưu hash SHA-256 của refresh token. Đổi mật khẩu xoá mọi refresh token của user: thiết bị khác bị đăng xuất khi access token của chúng hết hạn (≤ `JWT_TTL`).
 
 Quy tắc giống web: username 3–20 ký tự `[a-zA-Z0-9_]`, không phân biệt hoa thường; mật khẩu ≥ 8 ký tự; họ tên ≤ 50 ký tự.
 

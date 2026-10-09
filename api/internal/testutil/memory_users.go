@@ -48,6 +48,18 @@ func (r *MemoryUsers) UpdateCycleStartDay(_ context.Context, id string, day int)
 	return domain.ErrNotFound
 }
 
+func (r *MemoryUsers) UpdatePasswordHash(_ context.Context, id, hash string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := range r.users {
+		if r.users[i].ID == id {
+			r.users[i].PasswordHash = hash
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
 func (r *MemoryUsers) find(match func(domain.User) bool) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

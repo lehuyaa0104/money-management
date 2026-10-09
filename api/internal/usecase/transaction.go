@@ -9,13 +9,14 @@ import (
 	"github.com/leduchuy/money-management/api/internal/domain"
 )
 
+// CreateTransactionInput is also what Update takes: every field is replaced.
 type CreateTransactionInput struct {
 	Type       domain.TransactionType
 	Amount     int64
 	CategoryID string
 	Date       string
 	Note       string
-	// OccurredAt is optional; defaults to now.
+	// OccurredAt is optional; defaults to now (Update: keeps the old value).
 	OccurredAt *time.Time
 }
 
@@ -47,27 +48,52 @@ func (u *TransactionUsecase) Create(ctx context.Context, userID string, in Creat
 		OccurredAt: occurredAt,
 		CreatedAt:  now,
 	}
-	if err := tx.Validate(); err != nil {
+	if err := u.validate(ctx, tx); err != nil {
 		return nil, err
 	}
-
-	// The category must be one of the user's, of the same type (no expense filed under "Lương").
-	category, err := u.categories.FindByID(ctx, userID, in.CategoryID)
-	if errors.Is(err, domain.ErrNotFound) {
-		return nil, domain.ErrCategoryNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	if category.Type != tx.Type {
-		return nil, domain.ErrCategoryTypeMismatch
-	}
-	tx.CategoryName = category.Name
-
 	if err := u.transactions.Create(ctx, tx); err != nil {
 		return nil, err
 	}
 	return tx, nil
+}
+
+// Update replaces the fields of one of the user's transactions.
+func (u *TransactionUsecase) Update(ctx context.Context, userID, id string, in CreateTransactionInput) (*domain.Transaction, error) {
+	tx, err := u.transactions.FindByID(ctx, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	tx.Type, tx.Amount, tx.CategoryID, tx.Date, tx.Note = in.Type, in.Amount, in.CategoryID, in.Date, strings.TrimSpace(in.Note)
+	if in.OccurredAt != nil {
+		tx.OccurredAt = in.OccurredAt.UTC().Truncate(time.Millisecond)
+	}
+	if err := u.validate(ctx, tx); err != nil {
+		return nil, err
+	}
+	if err := u.transactions.Update(ctx, tx); err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
+// validate checks tx and fills in its category's current name.
+func (u *TransactionUsecase) validate(ctx context.Context, tx *domain.Transaction) error {
+	if err := tx.Validate(); err != nil {
+		return err
+	}
+	// The category must be one of the user's, of the same type (no expense filed under "Lương").
+	category, err := u.categories.FindByID(ctx, tx.UserID, tx.CategoryID)
+	if errors.Is(err, domain.ErrNotFound) {
+		return domain.ErrCategoryNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if category.Type != tx.Type {
+		return domain.ErrCategoryTypeMismatch
+	}
+	tx.CategoryName = category.Name
+	return nil
 }
 
 func (u *TransactionUsecase) List(ctx context.Context, userID string, filter domain.TransactionFilter) ([]domain.Transaction, error) {

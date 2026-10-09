@@ -64,6 +64,9 @@ type TransactionRepository interface {
 	Create(ctx context.Context, tx *Transaction) error
 	// List returns the user's transactions, newest first (by date, then time).
 	List(ctx context.Context, userID string, filter TransactionFilter) ([]Transaction, error)
+	// FindByID and Update return ErrNotFound if the transaction doesn't exist or isn't the user's.
+	FindByID(ctx context.Context, userID, id string) (*Transaction, error)
+	Update(ctx context.Context, tx *Transaction) error
 	// Delete returns ErrNotFound if the transaction doesn't exist or isn't the user's.
 	Delete(ctx context.Context, userID, id string) error
 }

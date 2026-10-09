@@ -30,6 +30,12 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
   return data.transaction
 }
 
+/** Replaces every field of the transaction. */
+export async function updateTransaction(id: string, input: CreateTransactionInput): Promise<ApiTransaction> {
+  const { data } = await api.put<{ transaction: ApiTransaction }>(`/transactions/${encodeURIComponent(id)}`, input)
+  return data.transaction
+}
+
 export async function listTransactions(signal?: AbortSignal): Promise<ApiTransaction[]> {
   const { data } = await api.get<{ transactions: ApiTransaction[] }>('/transactions', { signal })
   return data.transactions

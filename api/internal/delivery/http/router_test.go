@@ -29,7 +29,7 @@ func newTestServer(t *testing.T) http.Handler {
 		t.Fatal(err)
 	}
 	hasher := &security.BcryptHasher{Cost: bcrypt.MinCost}
-	auth, err := usecase.NewAuthUsecase(&testutil.MemoryUsers{}, hasher, jwtService, time.Now, uuid.NewString)
+	auth, err := usecase.NewAuthUsecase(&testutil.MemoryUsers{}, &testutil.MemoryRefreshTokens{}, 30*24*time.Hour, hasher, jwtService, time.Now, uuid.NewString)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,6 +120,29 @@ func TestAuthFlow(t *testing.T) {
 	}
 	if r := do(t, h, "PATCH", "/api/v1/auth/me", `{"cycleStartDay":5}`, ""); r.status != http.StatusUnauthorized {
 		t.Fatalf("patch me without token = %d", r.status)
+	}
+	if r := do(t, h, "PUT", "/api/v1/auth/password", `{"currentPassword":"nope","newPassword":"newpass123"}`, token); r.status != http.StatusBadRequest || errorCode(r) != "current_password_wrong" {
+		t.Fatalf("wrong current password = %d %v", r.status, r.body)
+	}
+	if r := do(t, h, "PUT", "/api/v1/auth/password", `{"currentPassword":"demo12345","newPassword":"newpass123"}`, ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("change password without token = %d", r.status)
+	}
+	refreshed := do(t, h, "POST", "/api/v1/auth/refresh", `{"refreshToken":"`+login.body["refreshToken"].(string)+`"}`, "")
+	if refreshed.status != http.StatusOK || refreshed.body["token"] == "" || refreshed.body["refreshToken"] == login.body["refreshToken"] {
+		t.Fatalf("refresh = %d %v", refreshed.status, refreshed.body)
+	}
+	if r := do(t, h, "POST", "/api/v1/auth/refresh", `{"refreshToken":"`+login.body["refreshToken"].(string)+`"}`, ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("reused refresh token = %d %v", r.status, r.body)
+	}
+	changed := do(t, h, "PUT", "/api/v1/auth/password", `{"currentPassword":"demo12345","newPassword":"newpass123"}`, token)
+	if changed.status != http.StatusOK || changed.body["refreshToken"] == "" {
+		t.Fatalf("change password = %d %v", changed.status, changed.body)
+	}
+	if r := do(t, h, "POST", "/api/v1/auth/refresh", `{"refreshToken":"`+refreshed.body["refreshToken"].(string)+`"}`, ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("other sessions must end after a password change = %d", r.status)
+	}
+	if r := do(t, h, "POST", "/api/v1/auth/login", `{"username":"demo_user","password":"newpass123"}`, ""); r.status != http.StatusOK {
+		t.Fatalf("login with new password = %d %v", r.status, r.body)
 	}
 	for _, bad := range []string{"", "not-a-token", token + "x"} {
 		if r := do(t, h, "GET", "/api/v1/auth/me", "", bad); r.status != http.StatusUnauthorized {
@@ -279,6 +302,16 @@ func TestListTransactionsFlow(t *testing.T) {
 	// Delete: only the owner can, and only once.
 	first := do(t, h, "GET", "/api/v1/transactions", "", token).body["transactions"].([]any)[0].(map[string]any)
 	id := first["id"].(string)
+
+	// Update: only the owner can.
+	edit := `{"type":"expense","amount":2500,"categoryId":"` + coffeeID + `","date":"2026-10-08","note":"sửa"}`
+	if r := do(t, h, "PUT", "/api/v1/transactions/"+id, edit, other); r.status != http.StatusNotFound {
+		t.Fatalf("someone else updating = %d", r.status)
+	}
+	if r := do(t, h, "PUT", "/api/v1/transactions/"+id, edit, token); r.status != http.StatusOK ||
+		r.body["transaction"].(map[string]any)["amount"] != float64(2500) || r.body["transaction"].(map[string]any)["note"] != "sửa" {
+		t.Fatalf("update = %d %v", r.status, r.body)
+	}
 	if r := do(t, h, "DELETE", "/api/v1/transactions/"+id, "", other); r.status != http.StatusNotFound {
 		t.Fatalf("someone else deleting = %d", r.status)
 	}

@@ -45,7 +45,7 @@ export default function ProfilePage() {
       disabled: transactions.length === 0,
     },
     { label: 'Thông báo', description: 'Nhắc ghi chép · Sắp ra mắt', icon: Bell, tone: 'bg-red-50 text-red-500', to: '/notifications' },
-    { label: 'Bảo mật', description: 'Đổi mật khẩu · Sắp ra mắt', icon: Shield, tone: 'bg-violet-50 text-violet-500', to: '/security' },
+    { label: 'Bảo mật', description: 'Đổi mật khẩu', icon: Shield, tone: 'bg-violet-50 text-violet-500', to: '/security' },
     { label: 'Giao diện', description: 'Chế độ sáng', icon: Moon, tone: 'bg-gray-100 text-gray-700', to: '/appearance' },
   ]
 
