@@ -2,10 +2,15 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"time"
 
+	gomysql "github.com/go-sql-driver/mysql"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -17,6 +22,8 @@ type Config struct {
 	User     string
 	Password string
 	Name     string
+	TLS      string // "tls" DSN value, e.g. "true"; empty = no TLS
+	CACert   string // PEM; when set, TLS is on and verified against this CA (e.g. Aiven's)
 }
 
 // Open connects to MySQL, retrying for a while because the database container
@@ -27,6 +34,19 @@ func Open(ctx context.Context, cfg Config, log *slog.Logger) (*gorm.DB, error) {
 	// 1 row affected, so "0 rows" reliably means "not found".
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=UTC&clientFoundRows=true",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
+	if cfg.CACert != "" {
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM([]byte(cfg.CACert)) {
+			return nil, errors.New("DB_CA_CERT: no PEM certificate found")
+		}
+		if err := gomysql.RegisterTLSConfig("custom", &tls.Config{RootCAs: pool}); err != nil {
+			return nil, err
+		}
+		cfg.TLS = "custom"
+	}
+	if cfg.TLS != "" {
+		dsn += "&tls=" + url.QueryEscape(cfg.TLS)
+	}
 
 	var db *gorm.DB
 	var err error

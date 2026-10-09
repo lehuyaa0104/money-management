@@ -16,6 +16,8 @@ type Config struct {
 	DBUser         string
 	DBPassword     string
 	DBName         string
+	DBTLS          string // go-sql-driver "tls" value: "", "true", "skip-verify", "preferred"
+	DBCACert       string // PEM; when set, the server certificate is verified against it
 	JWTSecret      string
 	JWTTTL         time.Duration
 	AllowedOrigins []string
@@ -28,6 +30,8 @@ func Load() (*Config, error) {
 		DBUser:     os.Getenv("DB_USER"),
 		DBPassword: os.Getenv("DB_PASSWORD"),
 		DBName:     os.Getenv("DB_NAME"),
+		DBTLS:      os.Getenv("DB_TLS"),
+		DBCACert:   os.Getenv("DB_CA_CERT"),
 		JWTSecret:  os.Getenv("JWT_SECRET"),
 	}
 	var errs []error

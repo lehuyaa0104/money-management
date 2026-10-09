@@ -48,6 +48,7 @@ func run(log *slog.Logger) error {
 
 	db, err := mysql.Open(ctx, mysql.Config{
 		Host: cfg.DBHost, Port: cfg.DBPort, User: cfg.DBUser, Password: cfg.DBPassword, Name: cfg.DBName,
+		TLS: cfg.DBTLS, CACert: cfg.DBCACert,
 	}, log)
 	if err != nil {
 		return err

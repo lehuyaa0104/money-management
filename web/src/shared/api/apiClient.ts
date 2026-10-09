@@ -17,7 +17,8 @@ export class ApiError extends Error {
 /** Shared axios instance. In dev, "/api" is proxied to the Go server by Vite. */
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
-  timeout: 15_000,
+  // Render's free plan sleeps when idle and takes up to a minute to wake up.
+  timeout: 90_000,
 })
 
 // Attach the signed-in user's token to every request.
