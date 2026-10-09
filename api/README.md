@@ -50,13 +50,17 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 | `POST` | `/api/v1/goals/:id/deposit` | `{amount}` → `200 {goal}` (nạp thêm vào `saved`) |
 | `POST` | `/api/v1/goals/:id/withdraw` | `{amount}` → `200 {goal}` (rút ra; vượt `saved` → `400 withdraw_too_large`) |
 | `DELETE` | `/api/v1/goals/:id` | Xoá mục tiêu → `204` (`404` nếu không tồn tại hoặc của người khác) |
+| `GET` | `/api/v1/assets` | Tài sản của user (tiết kiệm, chứng chỉ quỹ), mới nhất trước → `{assets}` |
+| `POST` | `/api/v1/assets` | `{kind, name, details}` → `201 {asset}` |
+| `PUT` | `/api/v1/assets/:id` | Cùng body như khi tạo → `200 {asset}`; thay toàn bộ `kind`, `name`, `details` |
+| `DELETE` | `/api/v1/assets/:id` | Xoá tài sản → `204` (`404` nếu không tồn tại hoặc của người khác) |
 | `GET` | `/healthz` | Kiểm tra server + kết nối database |
 
 Phiên đăng nhập: `token` (JWT, sống `JWT_TTL`, mặc định 15 phút) gửi kèm mọi request; khi hết hạn, gọi `/auth/refresh` với `refreshToken` (sống `REFRESH_TTL`, mặc định 30 ngày, tính từ lần refresh gần nhất) để lấy cặp mới. Server chỉ lưu hash SHA-256 của refresh token. Đổi mật khẩu xoá mọi refresh token của user: thiết bị khác bị đăng xuất khi access token của chúng hết hạn (≤ `JWT_TTL`).
 
 Quy tắc giống web: username 3–20 ký tự `[a-zA-Z0-9_]`, không phân biệt hoa thường; mật khẩu ≥ 8 ký tự; họ tên ≤ 50 ký tự.
 
-Các API `categories`, `transactions`, `budgets` và `goals` cần header `Authorization: Bearer <token>`. Danh mục: `type` là `expense`/`income`; `name` ≤ 30 ký tự, không trùng trong cùng loại (không phân biệt hoa thường, **có** phân biệt dấu: "Ga" ≠ "Gà"); `icon` là tên icon lucide-react (vd. `Utensils`); `color` dạng `#rrggbb`.
+Các API `categories`, `transactions`, `budgets`, `goals` và `assets` cần header `Authorization: Bearer <token>`. Danh mục: `type` là `expense`/`income`; `name` ≤ 30 ký tự, không trùng trong cùng loại (không phân biệt hoa thường, **có** phân biệt dấu: "Ga" ≠ "Gà"); `icon` là tên icon lucide-react (vd. `Utensils`); `color` dạng `#rrggbb`.
 
 Giao dịch: `amount` là số nguyên VND, 1 → 999 tỷ; `categoryId` phải là danh mục của user và **cùng loại** với giao dịch; `date` là ngày theo lịch `YYYY-MM-DD`; `occurredAt` (RFC 3339, mặc định là lúc gọi) là thời điểm xảy ra; `note` ≤ 100 ký tự. Server lưu kèm `categoryName` lúc tạo: nếu danh mục bị xoá, giao dịch vẫn còn, `categoryId` thành `null` nhưng `categoryName` giữ nguyên.
 
@@ -100,3 +104,8 @@ Test (không cần database):
 ```bash
 make test-api
 ```
+
+Tài sản: phần chung (`kind`, `name` ≤ 60 ký tự) là cột thường; phần riêng của từng loại nằm trong `details` (cột `JSON` của MySQL). Server kiểm tra `details` theo `kind`, từ chối field lạ (`400 details_invalid`) và lưu lại ở dạng chuẩn. Ngày tháng dạng `YYYY-MM-DD`, được phép muộn hơn ngày UTC của server tối đa 1 ngày (giờ Việt Nam đi trước). Lãi, ngày đáo hạn, số CCQ đang giữ, giá vốn… **không lưu**, web tự tính từ `details`.
+
+- `kind: "savings"` (sổ tiết kiệm): `{bank, amount, rate, termMonths, openedAt, interestPayout, onMaturity}`. `bank` ≤ 40 ký tự; `amount` 1 → 999 tỷ; `rate` 0 → 100 (%/năm); `termMonths` 0 → 120 (0 = không kỳ hạn); `interestPayout` là `maturity`/`monthly`/`upfront`; `onMaturity` là `rollover_all`/`rollover_principal`/`close`.
+- `kind: "fund"` (chứng chỉ quỹ mở): `{code, manager, nav, navDate, transactions}`. `code` ≤ 15 ký tự (tự viết hoa); `nav` ≥ 0 (VND/CCQ, được có số lẻ), `navDate` có thể rỗng; `transactions` tối đa 1000 dòng `{id, type: buy|sell, date, units, amount, nav}` với `id` không trùng, `units` > 0 (được có số lẻ), `amount` 1 → 999 tỷ, `nav` > 0. Xếp theo ngày mà có lần bán vượt số CCQ đang có lúc đó → `400 fund_oversold`.

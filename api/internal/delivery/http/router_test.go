@@ -41,6 +41,7 @@ func newTestServer(t *testing.T) http.Handler {
 		Transactions:  usecase.NewTransactionUsecase(transactions, categories, time.Now, uuid.NewString),
 		Budgets:       usecase.NewBudgetUsecase(&testutil.MemoryBudgets{Transactions: transactions}, categories, time.Now, uuid.NewString),
 		Goals:         usecase.NewGoalUsecase(&testutil.MemoryGoals{}, time.Now, uuid.NewString),
+		Assets:        usecase.NewAssetUsecase(&testutil.MemoryAssets{}, time.Now, uuid.NewString),
 		TokenVerifier: jwtService,
 		PingDB:        func(context.Context) error { return nil },
 	})
@@ -475,6 +476,50 @@ func TestGoalsFlow(t *testing.T) {
 		t.Fatalf("delete = %d", r.status)
 	}
 	if r := do(t, h, "GET", "/api/v1/goals", "", token); len(r.body["goals"].([]any)) != 0 {
+		t.Fatalf("after delete: %v", r.body)
+	}
+}
+
+func TestAssetsFlow(t *testing.T) {
+	h := newTestServer(t)
+	token := register(t, h, "investor")
+	other := register(t, h, "peeker")
+
+	if r := do(t, h, "GET", "/api/v1/assets", "", ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("without token = %d", r.status)
+	}
+	fund := `{"kind":"fund","name":"Quỹ DCDS","details":{"code":"dcds","manager":"Dragon Capital","nav":0,"navDate":"",` +
+		`"transactions":[{"id":"t1","type":"buy","date":"2026-03-05","units":100.5,"amount":9000000,"nav":89552.24}]}}`
+	created := do(t, h, "POST", "/api/v1/assets", fund, token)
+	asset, _ := created.body["asset"].(map[string]any)
+	details, _ := asset["details"].(map[string]any)
+	if created.status != http.StatusCreated || details["code"] != "DCDS" || details["transactions"].([]any)[0].(map[string]any)["units"] != 100.5 {
+		t.Fatalf("create = %d %v", created.status, created.body)
+	}
+	id := asset["id"].(string)
+
+	bad := `{"kind":"fund","details":{"code":"DCDS","manager":"","nav":0,"navDate":"","transactions":[],"price":1}}`
+	if r := do(t, h, "POST", "/api/v1/assets", bad, token); r.status != http.StatusBadRequest || errorCode(r) != "details_invalid" {
+		t.Fatalf("unknown field = %d %v", r.status, r.body)
+	}
+	if r := do(t, h, "GET", "/api/v1/assets", "", other); len(r.body["assets"].([]any)) != 0 {
+		t.Fatalf("another user sees %v", r.body)
+	}
+	savings := `{"kind":"savings","name":"","details":{"bank":"VCB","amount":80000000,"rate":4.7,"termMonths":6,` +
+		`"openedAt":"2026-01-05","interestPayout":"maturity","onMaturity":"rollover_all"}}`
+	if r := do(t, h, "PUT", "/api/v1/assets/"+id, savings, other); r.status != http.StatusNotFound {
+		t.Fatalf("someone else updating = %d", r.status)
+	}
+	if r := do(t, h, "PUT", "/api/v1/assets/"+id, savings, token); r.status != http.StatusOK || r.body["asset"].(map[string]any)["details"].(map[string]any)["rate"] != 4.7 {
+		t.Fatalf("update = %d %v", r.status, r.body)
+	}
+	if r := do(t, h, "GET", "/api/v1/assets", "", token); len(r.body["assets"].([]any)) != 1 {
+		t.Fatalf("list = %v", r.body)
+	}
+	if r := do(t, h, "DELETE", "/api/v1/assets/"+id, "", token); r.status != http.StatusNoContent {
+		t.Fatalf("delete = %d", r.status)
+	}
+	if r := do(t, h, "GET", "/api/v1/assets", "", token); len(r.body["assets"].([]any)) != 0 {
 		t.Fatalf("after delete: %v", r.body)
 	}
 }

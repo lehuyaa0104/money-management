@@ -3,54 +3,33 @@ import { useAuth } from '@/features/auth/useAuth'
 import type { FundDetails } from './funds/types'
 import type { SavingsDetails } from './savings/types'
 
-/** Listed ETFs count as stocks: they trade on the exchange the same way. */
-export type InvestmentKind = 'stock' | 'crypto'
-export type AssetKind = InvestmentKind | 'fund' | 'savings'
-
-export interface InvestmentDetails {
-  symbol: string // upper case
-  /** Units held; crypto can be fractional. */
-  quantity: number
-  /** Average VND paid per unit. */
-  costPrice: number
-  /** VND per unit now, entered by the user. */
-  price: number
-}
+export type AssetKind = 'fund' | 'savings'
 
 /**
  * Common fields plus `details` that depend on `kind`, the shape the API will
  * store as a JSON column.
  */
 export type AssetInput = { name: string } & (
-  | { kind: InvestmentKind; details: InvestmentDetails }
   | { kind: 'fund'; details: FundDetails }
   | { kind: 'savings'; details: SavingsDetails }
 )
 export type Asset = AssetInput & { id: string }
 export type SavingsAsset = Extract<Asset, { kind: 'savings' }>
 export type FundAsset = Extract<Asset, { kind: 'fund' }>
-export type InvestmentAsset = Extract<Asset, { kind: InvestmentKind }>
 
 function normalize(input: AssetInput): AssetInput {
   const name = input.name.trim()
-  switch (input.kind) {
-    case 'savings':
-      return { ...input, name, details: { ...input.details, bank: input.details.bank.trim() } }
-    case 'fund':
-      return { ...input, name, details: { ...input.details, code: input.details.code.trim().toUpperCase() } }
-    default:
-      return { ...input, name, details: { ...input.details, symbol: input.details.symbol.trim().toUpperCase() } }
-  }
+  return input.kind === 'savings'
+    ? { ...input, name, details: { ...input.details, bank: input.details.bank.trim() } }
+    : { ...input, name, details: { ...input.details, code: input.details.code.trim().toUpperCase() } }
 }
 
 function read(key: string): Asset[] {
   try {
     const stored = localStorage.getItem(key)
     // Entries saved before `details` existed (only on this branch's test data) are skipped.
-    // ETFs were a kind of their own on this branch before; they're stocks now.
-    return stored
-      ? (JSON.parse(stored) as Asset[]).filter((a) => a.details).map((a) => ((a.kind as string) === 'etf' ? { ...a, kind: 'stock' } : a) as Asset)
-      : []
+    // Only kinds this version knows; stocks and crypto entered earlier on this branch are left out.
+    return stored ? (JSON.parse(stored) as Asset[]).filter((a) => a.details && (a.kind === 'fund' || a.kind === 'savings')) : []
   } catch {
     return []
   }

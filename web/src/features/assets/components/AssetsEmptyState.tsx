@@ -13,7 +13,7 @@ export default function AssetsEmptyState({ onAdd }: { onAdd: () => void }) {
         Chưa có tài sản nào
       </Text>
       <Text variant="caption" tone="muted" className="max-w-64">
-        Thêm cổ phiếu, quỹ ETF, crypto hoặc sổ tiết kiệm để theo dõi tổng tài sản của bạn.
+        Thêm sổ tiết kiệm hoặc chứng chỉ quỹ để theo dõi tổng tài sản của bạn.
       </Text>
       <Button className="mt-4 h-12 w-auto px-6" onClick={onAdd}>
         <Plus className="size-5" /> Thêm tài sản

@@ -17,6 +17,7 @@ type RouterDeps struct {
 	Transactions   handler.TransactionService
 	Budgets        handler.BudgetService
 	Goals          handler.GoalService
+	Assets         handler.AssetService
 	TokenVerifier  middleware.TokenVerifier
 	PingDB         func(context.Context) error
 	AllowedOrigins []string
@@ -78,6 +79,13 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		goals.POST("/:id/deposit", goalHandler.Deposit)
 		goals.POST("/:id/withdraw", goalHandler.Withdraw)
 		goals.DELETE("/:id", goalHandler.Delete)
+
+		assetHandler := handler.NewAssetHandler(deps.Assets)
+		assets := api.Group("/assets", middleware.RequireAuth(deps.TokenVerifier))
+		assets.GET("", assetHandler.List)
+		assets.POST("", assetHandler.Create)
+		assets.PUT("/:id", assetHandler.Update)
+		assets.DELETE("/:id", assetHandler.Delete)
 	}
 	return r
 }

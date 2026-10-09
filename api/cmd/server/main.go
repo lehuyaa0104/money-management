@@ -81,6 +81,7 @@ func run(log *slog.Logger) error {
 		Transactions:   usecase.NewTransactionUsecase(mysql.NewTransactionRepository(db), categoryRepo, now, uuid.NewString),
 		Budgets:        usecase.NewBudgetUsecase(mysql.NewBudgetRepository(db), categoryRepo, now, uuid.NewString),
 		Goals:          usecase.NewGoalUsecase(mysql.NewGoalRepository(db), now, uuid.NewString),
+		Assets:         usecase.NewAssetUsecase(mysql.NewAssetRepository(db), now, uuid.NewString),
 		TokenVerifier:  jwtService,
 		PingDB:         sqlDB.PingContext,
 		AllowedOrigins: cfg.AllowedOrigins,
