@@ -3,6 +3,7 @@ import { GuestOnly, RequireAuth } from './features/auth/RouteGuards'
 import TabLayout from './shared/layout/TabLayout'
 import AddTransactionPage from './features/transactions/pages/AddTransactionPage'
 import AssetsPage from './features/assets/pages/AssetsPage'
+import AssetsProvider from './features/assets/AssetsProvider'
 import FundDetailPage from './features/assets/funds/pages/FundDetailPage'
 import SavingsFormPage from './features/assets/savings/pages/SavingsFormPage'
 import AnalyticsPage from './features/analytics/pages/AnalyticsPage'
@@ -35,15 +36,19 @@ export default function App() {
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/budget" element={<BudgetPage />} />
               <Route path="/budget/goals" element={<GoalsPage />} />
-              <Route path="/budget/savings" element={<AssetsPage />} />
-              <Route path="/budget/savings/funds/new/:code" element={<FundDetailPage />} />
-              <Route path="/budget/savings/funds/:id" element={<FundDetailPage />} />
+              <Route element={<AssetsProvider />}>
+                <Route path="/budget/savings" element={<AssetsPage />} />
+                <Route path="/budget/savings/funds/new/:code" element={<FundDetailPage />} />
+                <Route path="/budget/savings/funds/:id" element={<FundDetailPage />} />
+              </Route>
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
             <Route path="/transactions/new" element={<AddTransactionPage />} />
             <Route path="/transactions/:id/edit" element={<AddTransactionPage />} />
-            <Route path="/budget/savings/accounts/new" element={<SavingsFormPage />} />
-            <Route path="/budget/savings/accounts/:id" element={<SavingsFormPage />} />
+            <Route element={<AssetsProvider />}>
+              <Route path="/budget/savings/accounts/new" element={<SavingsFormPage />} />
+              <Route path="/budget/savings/accounts/:id" element={<SavingsFormPage />} />
+            </Route>
             <Route path="/transfer" element={<ComingSoonPage title="Chuyển tiền" standalone />} />
             <Route path="/notifications" element={<ComingSoonPage title="Thông báo" standalone />} />
             <Route path="/accounts" element={<ComingSoonPage title="Tài khoản" standalone />} />

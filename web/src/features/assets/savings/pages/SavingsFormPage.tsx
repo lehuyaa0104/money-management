@@ -7,6 +7,7 @@ import { ON_MATURITY_OPTIONS, PAYOUT_OPTIONS, TERM_MONTHS, termLabel } from '@/f
 import type { InterestPayout, OnMaturity, SavingsDetails } from '@/features/assets/savings/types'
 import { useAssets } from '@/features/assets/useAssets'
 import PageHeader from '@/shared/layout/PageHeader'
+import { ApiError } from '@/shared/api/apiClient'
 import Alert from '@/shared/ui/Alert'
 import Button from '@/shared/ui/Button'
 import ConfirmDialog from '@/shared/ui/ConfirmDialog'
@@ -84,9 +85,8 @@ export default function SavingsFormPage() {
     try {
       if (editing) await update(editing.id, input)
       else await create(input)
-    } catch {
-      // Saving can only fail when the browser's storage is full or blocked.
-      setError('root.server', { message: 'Không lưu được trên trình duyệt này, vui lòng thử lại' })
+    } catch (err) {
+      setError('root.server', { message: err instanceof ApiError ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại' })
       return
     }
     leave()

@@ -18,6 +18,7 @@ type RouterDeps struct {
 	Budgets        handler.BudgetService
 	Goals          handler.GoalService
 	Assets         handler.AssetService
+	FundNavs       handler.FundNavService
 	TokenVerifier  middleware.TokenVerifier
 	PingDB         func(context.Context) error
 	AllowedOrigins []string
@@ -86,6 +87,10 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		assets.POST("", assetHandler.Create)
 		assets.PUT("/:id", assetHandler.Update)
 		assets.DELETE("/:id", assetHandler.Delete)
+
+		// Signed-in users only, so the endpoint can't be used as an open proxy to the NAV source.
+		fundNavHandler := handler.NewFundNavHandler(deps.FundNavs)
+		api.GET("/funds/navs", middleware.RequireAuth(deps.TokenVerifier), fundNavHandler.List)
 	}
 	return r
 }

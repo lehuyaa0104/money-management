@@ -1,4 +1,4 @@
-import { fundPosition } from './funds/fundStats'
+import { fundPosition, type DatedNav } from './funds/fundStats'
 import { savingsMonthlyInterest, savingsStatus } from './savings/savingsStats'
 import type { Asset, AssetKind, FundAsset, SavingsAsset } from './useAssets'
 
@@ -18,13 +18,14 @@ export interface PortfolioSummary {
   byKind: Record<AssetKind, number>
 }
 
-export function summarize(assets: Asset[], today: string): PortfolioSummary {
+/** `navs` are the funds' published NAVs by code. */
+export function summarize(assets: Asset[], today: string, navs: Record<string, DatedNav> = {}): PortfolioSummary {
   const byKind: Record<AssetKind, number> = { fund: 0, savings: 0 }
   let cost = 0
   let interest = 0
   for (const a of assets) {
     if (isFund(a)) {
-      const p = fundPosition(a.details)
+      const p = fundPosition(a.details, navs[a.details.code])
       byKind.fund += p.value
       cost += p.cost
     } else {

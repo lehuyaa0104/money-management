@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { fundPosition } from '@/features/assets/funds/fundStats'
 import type { FundDetails, FundTransaction } from '@/features/assets/funds/types'
+import { ApiError } from '@/shared/api/apiClient'
 import Alert from '@/shared/ui/Alert'
 import BottomSheet from '@/shared/ui/BottomSheet'
 import Button from '@/shared/ui/Button'
@@ -63,8 +64,8 @@ export default function FundTransactionSheet({ details, tx, type = 'buy', onSave
   const busy = isSubmitting || removing
   const others = details.transactions.filter((t) => t.id !== tx?.id)
 
-  // Saving can only fail when the browser's storage is full or blocked.
-  const storageError = () => setError('root.server', { message: 'Không lưu được trên trình duyệt này, vui lòng thử lại' })
+  const showError = (err: unknown) =>
+    setError('root.server', { message: err instanceof ApiError ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại' })
 
   const submit = async (v: FormValues) => {
     const next: FundTransaction = {
@@ -81,8 +82,8 @@ export default function FundTransactionSheet({ details, tx, type = 'buy', onSave
     }
     try {
       await onSave(next)
-    } catch {
-      storageError()
+    } catch (err) {
+      showError(err)
     }
   }
 
@@ -96,8 +97,8 @@ export default function FundTransactionSheet({ details, tx, type = 'buy', onSave
     setRemoving(true)
     try {
       await onRemove()
-    } catch {
-      storageError()
+    } catch (err) {
+      showError(err)
       setRemoving(false)
     }
   }

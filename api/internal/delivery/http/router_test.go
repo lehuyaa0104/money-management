@@ -42,6 +42,7 @@ func newTestServer(t *testing.T) http.Handler {
 		Budgets:       usecase.NewBudgetUsecase(&testutil.MemoryBudgets{Transactions: transactions}, categories, time.Now, uuid.NewString),
 		Goals:         usecase.NewGoalUsecase(&testutil.MemoryGoals{}, time.Now, uuid.NewString),
 		Assets:        usecase.NewAssetUsecase(&testutil.MemoryAssets{}, time.Now, uuid.NewString),
+		FundNavs:      fakeNavs{},
 		TokenVerifier: jwtService,
 		PingDB:        func(context.Context) error { return nil },
 	})
@@ -521,5 +522,23 @@ func TestAssetsFlow(t *testing.T) {
 	}
 	if r := do(t, h, "GET", "/api/v1/assets", "", token); len(r.body["assets"].([]any)) != 0 {
 		t.Fatalf("after delete: %v", r.body)
+	}
+}
+
+type fakeNavs struct{}
+
+func (fakeNavs) Latest(context.Context) ([]domain.FundNav, error) {
+	return []domain.FundNav{{Code: "DCDS", Nav: 93099.64, Date: "2026-10-09"}}, nil
+}
+
+func TestFundNavs(t *testing.T) {
+	h := newTestServer(t)
+	if r := do(t, h, "GET", "/api/v1/funds/navs", "", ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("without token = %d", r.status)
+	}
+	r := do(t, h, "GET", "/api/v1/funds/navs", "", register(t, h, "navreader"))
+	nav, _ := r.body["navs"].([]any)
+	if r.status != http.StatusOK || len(nav) != 1 || nav[0].(map[string]any)["navDate"] != "2026-10-09" || nav[0].(map[string]any)["nav"] != 93099.64 {
+		t.Fatalf("navs = %d %v", r.status, r.body)
 	}
 }

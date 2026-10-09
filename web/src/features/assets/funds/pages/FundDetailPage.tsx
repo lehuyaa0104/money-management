@@ -25,7 +25,7 @@ type Sheet = { kind: 'tx'; type: FundTransaction['type']; tx?: FundTransaction }
  * is a draft that is only saved with its first transaction, so backing out leaves nothing behind.
  */
 export default function FundDetailPage() {
-  const { assets, create, update, remove } = useAssets()
+  const { assets, navs, create, update, remove } = useAssets()
   const { id, code } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -40,7 +40,8 @@ export default function FundDetailPage() {
   if (!fund) return <Navigate to={LIST} replace />
 
   const d = fund.details
-  const position = fundPosition(d)
+  const market = navs[d.code]
+  const position = fundPosition(d, market)
   const history = byDate(d.transactions).reverse()
 
   const saveDetails = async (details: FundDetails) => {
@@ -77,16 +78,19 @@ export default function FundDetailPage() {
             <FundSummaryCard position={position} />
             {position.oversold && <Alert>Có giao dịch bán nhiều hơn số CCQ đang có lúc đó. Hãy kiểm tra lại lịch sử giao dịch.</Alert>}
 
-            <div className="grid grid-cols-3 gap-2">
+            {/* A published NAV always wins, so typing one is only offered when the API has none. */}
+            <div className={market ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-3 gap-2'}>
               <Button className="h-12 text-sm" onClick={() => setSheet({ kind: 'tx', type: 'buy' })}>
                 <Plus className="size-4" /> Mua thêm
               </Button>
               <Button variant="outline" className="h-12 text-sm text-red-600" disabled={position.units === 0} onClick={() => setSheet({ kind: 'tx', type: 'sell' })}>
                 <Minus className="size-4" /> Bán
               </Button>
-              <Button variant="outline" className="h-12 text-sm" onClick={() => setSheet({ kind: 'nav' })}>
-                <RefreshCw className="size-4" /> NAV
-              </Button>
+              {!market && (
+                <Button variant="outline" className="h-12 text-sm" onClick={() => setSheet({ kind: 'nav' })}>
+                  <RefreshCw className="size-4" /> NAV
+                </Button>
+              )}
             </div>
 
             <section className="flex flex-col gap-3">

@@ -25,13 +25,13 @@ const SAVINGS_FORM = '/budget/savings/accounts'
 const FUNDS = '/budget/savings/funds'
 
 export default function AssetsPage() {
-  const { assets } = useAssets()
+  const { assets, navs } = useAssets()
   const [tab, setTab] = useState<AssetTab>('all')
   const [sheet, setSheet] = useState<Sheet>(null)
   const navigate = useNavigate()
   const today = todayISO()
 
-  const summary = summarize(assets, today)
+  const summary = summarize(assets, today, navs)
   const shown = assets.filter((a) => tab === 'all' || a.kind === tab)
   const funds = shown.filter(isFund)
   const savings = shown.filter(isSavings)
@@ -68,10 +68,10 @@ export default function AssetsPage() {
 
             {funds.length > 0 && (
               <section className="flex flex-col gap-3">
-                <SectionTitle title="Chứng chỉ quỹ" extra={formatCompactCurrency(funds.reduce((s, a) => s + fundPosition(a.details).value, 0))} />
+                <SectionTitle title="Chứng chỉ quỹ" extra={formatCompactCurrency(funds.reduce((s, a) => s + fundPosition(a.details, navs[a.details.code]).value, 0))} />
                 <Card className="divide-y divide-gray-100 p-0">
                   {funds.map((a) => (
-                    <FundCard key={a.id} asset={a} onSelect={() => navigate(`${FUNDS}/${a.id}`)} />
+                    <FundCard key={a.id} asset={a} market={navs[a.details.code]} onSelect={() => navigate(`${FUNDS}/${a.id}`)} />
                   ))}
                 </Card>
               </section>

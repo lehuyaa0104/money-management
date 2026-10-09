@@ -1,14 +1,14 @@
 import { signedPercent } from '@/features/assets/assetKinds'
 import { formatNav, formatUnits } from '@/features/assets/funds/fundFormat'
-import { fundPosition, isNavStale } from '@/features/assets/funds/fundStats'
+import { fundPosition, isNavStale, type DatedNav } from '@/features/assets/funds/fundStats'
 import type { FundAsset } from '@/features/assets/useAssets'
 import Text from '@/shared/ui/Text'
 import { cn } from '@/shared/utils/cn'
 import { formatCompactCurrency, formatDayMonth, todayISO } from '@/shared/utils/format'
 
 /** One fund on the assets list: units, average cost, value and how fresh the NAV is. */
-export default function FundCard({ asset: a, onSelect }: { asset: FundAsset; onSelect: () => void }) {
-  const p = fundPosition(a.details)
+export default function FundCard({ asset: a, market, onSelect }: { asset: FundAsset; market?: DatedNav; onSelect: () => void }) {
+  const p = fundPosition(a.details, market)
   const stale = isNavStale(p.navDate, todayISO())
   return (
     <button type="button" onClick={onSelect} className="flex w-full items-center gap-3 px-4 py-4 text-left active:bg-gray-50">

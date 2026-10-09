@@ -5,8 +5,17 @@ import type { FundDetails, FundTransaction } from './types'
 /** Oldest first; same-day trades keep the order they were entered. */
 export const byDate = (txs: FundTransaction[]) => [...txs].sort((a, b) => a.date.localeCompare(b.date))
 
-/** The NAV to value the holding at: the user's last entry, or a newer transaction's. */
-export function currentNav(d: FundDetails): { nav: number; date: string } {
+export interface DatedNav {
+  nav: number
+  date: string
+}
+
+/**
+ * The NAV to value the holding at: the published one when the API has it; otherwise
+ * the newer of the user's entry and the latest trade's.
+ */
+export function currentNav(d: FundDetails, market?: DatedNav): DatedNav {
+  if (market) return market
   const latest = byDate(d.transactions).at(-1)
   return latest && latest.date > d.navDate ? { nav: latest.nav, date: latest.date } : { nav: d.nav, date: d.navDate }
 }
@@ -32,7 +41,8 @@ export interface FundPosition {
 // Float noise from fractional units (183.47 + 0.1 …) shouldn't read as "still holding 0.0000001".
 const EPSILON = 1e-6
 
-export function fundPosition(d: FundDetails): FundPosition {
+/** `market` is the fund's published NAV, when the API has one. */
+export function fundPosition(d: FundDetails, market?: DatedNav): FundPosition {
   let units = 0
   let cost = 0
   let realizedGain = 0
@@ -51,7 +61,7 @@ export function fundPosition(d: FundDetails): FundPosition {
     cost -= soldCost
     if (units < EPSILON) units = cost = 0
   }
-  const { nav, date } = currentNav(d)
+  const { nav, date } = currentNav(d, market)
   const value = Math.round(units * nav)
   return {
     units,

@@ -1,4 +1,6 @@
 import { Controller, useForm } from 'react-hook-form'
+import { ApiError } from '@/shared/api/apiClient'
+import Alert from '@/shared/ui/Alert'
 import BottomSheet from '@/shared/ui/BottomSheet'
 import Button from '@/shared/ui/Button'
 import MoneyField from '@/shared/ui/MoneyField'
@@ -12,12 +14,13 @@ interface NavSheetProps {
   onClose: () => void
 }
 
-/** Manual NAV update. shortcut: typed by the user; the API will fetch the latest NAV once it exists. */
+/** Manual NAV update, for funds the API has no published NAV for (or when it's unreachable). */
 export default function NavSheet({ code, nav, onSave, onClose }: NavSheetProps) {
   const {
     register,
     control,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({ mode: 'onChange', defaultValues: { nav: decimalInput(nav), date: todayISO() } })
 
@@ -31,7 +34,14 @@ export default function NavSheet({ code, nav, onSave, onClose }: NavSheetProps) 
         </Button>
       }
     >
-      <form id="nav-form" noValidate onSubmit={handleSubmit((v) => onSave(parseDecimal(v.nav), v.date))} className="flex flex-col gap-5 pt-2">
+      <form id="nav-form" noValidate onSubmit={handleSubmit(async (v) => {
+          try {
+            await onSave(parseDecimal(v.nav), v.date)
+          } catch (err) {
+            setError('root.server', { message: err instanceof ApiError ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại' })
+          }
+        })} className="flex flex-col gap-5 pt-2">
+        {errors.root?.server && <Alert>{errors.root.server.message}</Alert>}
         <Controller
           name="nav"
           control={control}
