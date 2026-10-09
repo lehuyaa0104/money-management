@@ -1,5 +1,5 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
+import { useForm, useWatch, type FieldErrors } from 'react-hook-form'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { CalendarDays, ChevronDown, Clock, Tag, type LucideIcon } from 'lucide-react'
 import PageHeader from '@/shared/layout/PageHeader'
@@ -8,6 +8,7 @@ import SegmentedControl from '@/shared/ui/SegmentedControl'
 import Alert from '@/shared/ui/Alert'
 import Button from '@/shared/ui/Button'
 import Text from '@/shared/ui/Text'
+import Toast from '@/shared/ui/Toast'
 import { useTransactions } from '@/features/transactions/useTransactions'
 import type { TransactionType } from '@/features/transactions/types'
 import { pressKey, type KeypadKey } from '@/features/transactions/amountInput'
@@ -121,12 +122,25 @@ export default function AddTransactionPage() {
 
   const changeType = (next: TransactionType) => setValue('type', next)
 
+  const [toast, setToast] = useState<{ message: string; key: number } | null>(null)
+  // A new key remounts the toast, restarting its timer when tapped again.
+  const showToast = (message: string) => setToast((t) => ({ message, key: (t?.key ?? 0) + 1 }))
+  const hideToast = useCallback(() => setToast(null), [])
+  const noCategoryMessage = `Bạn chưa có danh mục ${type === 'income' ? 'thu nhập' : 'chi tiêu'} nào, hãy thêm danh mục trước`
+
+  // Save stays enabled so a tap always explains what's missing, in screen order.
+  const onInvalid = (invalid: FieldErrors<FormValues>) => {
+    if (invalid.amount) showToast(invalid.amount.message ?? 'Vui lòng nhập số tiền')
+    else if (invalid.category) showToast(options.length === 0 ? noCategoryMessage : 'Vui lòng chọn danh mục')
+    else if (invalid.date) showToast(invalid.date.message ?? 'Vui lòng chọn ngày')
+  }
+
   const onKey = (key: KeypadKey) => setValue('amount', pressKey(getValues('amount'), key), { shouldValidate: true })
 
   const onSubmit = async (values: FormValues) => {
     const categoryId = options.find((c) => c.name === values.category)?.id
     if (!categoryId) {
-      setError('root.server', { message: 'Vui lòng chọn danh mục' })
+      showToast(options.length === 0 ? noCategoryMessage : 'Vui lòng chọn danh mục')
       return
     }
     try {
@@ -150,7 +164,7 @@ export default function AddTransactionPage() {
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit, onInvalid)}
       noValidate
       className="mx-auto flex h-dvh max-w-120 flex-col bg-white"
     >
@@ -289,12 +303,14 @@ export default function AddTransactionPage() {
         <Button
           type="submit"
           variant={type === 'expense' ? 'danger' : 'primary'}
-          disabled={Number(amount || 0) <= 0 || !category || isSubmitting}
+          disabled={isSubmitting}
           className="mt-5 mb-4"
         >
           {isSubmitting ? 'Đang lưu…' : style.save}
         </Button>
       </div>
+
+      {toast && <Toast key={toast.key} message={toast.message} onClose={hideToast} />}
     </form>
   )
 }
