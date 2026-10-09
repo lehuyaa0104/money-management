@@ -122,3 +122,13 @@ const groupedNumber = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 
 export function formatNumber(value: number): string {
   return groupedNumber.format(value)
 }
+
+/** Typed decimal, Vietnamese "0,05" or "0.05" → 0.05; NaN when empty or not a number. */
+export function parseDecimal(value: string): number {
+  return value.trim() === '' ? NaN : Number(value.trim().replace(',', '.'))
+}
+
+/** 0.05 → "0,05" for an input's value; '' for 0. */
+export function decimalInput(value: number): string {
+  return value ? String(value).replace('.', ',') : ''
+}

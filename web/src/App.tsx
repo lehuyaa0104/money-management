@@ -3,6 +3,7 @@ import { GuestOnly, RequireAuth } from './features/auth/RouteGuards'
 import TabLayout from './shared/layout/TabLayout'
 import AddTransactionPage from './features/transactions/pages/AddTransactionPage'
 import AssetsPage from './features/assets/pages/AssetsPage'
+import SavingsFormPage from './features/assets/savings/pages/SavingsFormPage'
 import AnalyticsPage from './features/analytics/pages/AnalyticsPage'
 import CategoriesPage from './features/categories/pages/CategoriesPage'
 import CategoriesProvider from './features/categories/CategoriesProvider'
@@ -38,6 +39,8 @@ export default function App() {
             </Route>
             <Route path="/transactions/new" element={<AddTransactionPage />} />
             <Route path="/transactions/:id/edit" element={<AddTransactionPage />} />
+            <Route path="/budget/savings/accounts/new" element={<SavingsFormPage />} />
+            <Route path="/budget/savings/accounts/:id" element={<SavingsFormPage />} />
             <Route path="/transfer" element={<ComingSoonPage title="Chuyển tiền" standalone />} />
             <Route path="/notifications" element={<ComingSoonPage title="Thông báo" standalone />} />
             <Route path="/accounts" element={<ComingSoonPage title="Tài khoản" standalone />} />

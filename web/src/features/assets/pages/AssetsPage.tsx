@@ -1,32 +1,40 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import { Plus } from 'lucide-react'
 import AllocationBar from '@/features/assets/components/AllocationBar'
-import AssetFormSheet from '@/features/assets/components/AssetFormSheet'
+import AssetKindPicker from '@/features/assets/components/AssetKindPicker'
 import AssetsEmptyState from '@/features/assets/components/AssetsEmptyState'
 import AssetsSummaryCard from '@/features/assets/components/AssetsSummaryCard'
 import AssetTabs, { type AssetTab } from '@/features/assets/components/AssetTabs'
 import HoldingRow from '@/features/assets/components/HoldingRow'
-import SavingsCard from '@/features/assets/components/SavingsCard'
+import InvestmentFormSheet from '@/features/assets/components/InvestmentFormSheet'
+import SavingsCard from '@/features/assets/savings/components/SavingsCard'
 import SectionTitle from '@/features/assets/components/SectionTitle'
-import { assetValue, isInvestment, monthlyInterest, summarize } from '@/features/assets/assetStats'
-import { useAssets } from '@/features/assets/useAssets'
+import { investmentValue, isInvestment, isSavings, summarize } from '@/features/assets/assetStats'
+import { savingsMonthlyInterest } from '@/features/assets/savings/savingsStats'
+import { useAssets, type InvestmentKind } from '@/features/assets/useAssets'
 import PageHeader from '@/shared/layout/PageHeader'
 import Card from '@/shared/ui/Card'
 import Text from '@/shared/ui/Text'
-import { formatCompactCurrency } from '@/shared/utils/format'
+import { formatCompactCurrency, todayISO } from '@/shared/utils/format'
 
-type Sheet = { kind: 'create' } | { kind: 'edit'; id: string } | null
+type Sheet = { kind: 'pick' } | { kind: 'create'; assetKind: InvestmentKind } | { kind: 'edit'; id: string } | null
+
+const SAVINGS_FORM = '/budget/savings/accounts'
 
 export default function AssetsPage() {
   const { assets, create, update, remove } = useAssets()
   const [tab, setTab] = useState<AssetTab>('all')
   const [sheet, setSheet] = useState<Sheet>(null)
-  const editing = sheet?.kind === 'edit' ? assets.find((a) => a.id === sheet.id) : undefined
+  const navigate = useNavigate()
+  const today = todayISO()
+  const found = sheet?.kind === 'edit' ? assets.find((a) => a.id === sheet.id) : undefined
+  const editing = found && isInvestment(found) ? found : undefined
 
-  const summary = summarize(assets)
+  const summary = summarize(assets, today)
   const shown = assets.filter((a) => tab === 'all' || a.kind === tab)
   const holdings = shown.filter(isInvestment)
-  const savings = shown.filter((a) => !isInvestment(a))
+  const savings = shown.filter(isSavings)
 
   return (
     <>
@@ -38,7 +46,7 @@ export default function AssetsPage() {
         action={
           <button
             type="button"
-            onClick={() => setSheet({ kind: 'create' })}
+            onClick={() => setSheet({ kind: 'pick' })}
             aria-label="Thêm tài sản"
             className="grid size-11 shrink-0 place-items-center rounded-full bg-primary-soft text-primary active:bg-green-200"
           >
@@ -51,7 +59,7 @@ export default function AssetsPage() {
         <AssetsSummaryCard summary={summary} />
 
         {assets.length === 0 ? (
-          <AssetsEmptyState onAdd={() => setSheet({ kind: 'create' })} />
+          <AssetsEmptyState onAdd={() => setSheet({ kind: 'pick' })} />
         ) : (
           <>
             <AllocationBar byKind={summary.byKind} />
@@ -60,7 +68,7 @@ export default function AssetsPage() {
 
             {holdings.length > 0 && (
               <section className="flex flex-col gap-3">
-                <SectionTitle title="Danh mục đầu tư" extra={formatCompactCurrency(holdings.reduce((s, a) => s + assetValue(a), 0))} />
+                <SectionTitle title="Danh mục đầu tư" extra={formatCompactCurrency(holdings.reduce((s, a) => s + investmentValue(a), 0))} />
                 <Card className="divide-y divide-gray-100 p-0">
                   {holdings.map((a) => (
                     <HoldingRow key={a.id} asset={a} onSelect={() => setSheet({ kind: 'edit', id: a.id })} />
@@ -71,9 +79,9 @@ export default function AssetsPage() {
 
             {savings.length > 0 && (
               <section className="flex flex-col gap-3">
-                <SectionTitle title="Tài khoản tiết kiệm" extra={`+${formatCompactCurrency(savings.reduce((s, a) => s + monthlyInterest(a), 0))}/tháng`} />
+                <SectionTitle title="Tài khoản tiết kiệm" extra={`+${formatCompactCurrency(savings.reduce((s, a) => s + savingsMonthlyInterest(a, today), 0))}/tháng`} />
                 {savings.map((a) => (
-                  <SavingsCard key={a.id} asset={a} onSelect={() => setSheet({ kind: 'edit', id: a.id })} />
+                  <SavingsCard key={a.id} asset={a} onSelect={() => navigate(`${SAVINGS_FORM}/${a.id}`)} />
                 ))}
               </section>
             )}
@@ -87,8 +95,15 @@ export default function AssetsPage() {
         )}
       </main>
 
+      {sheet?.kind === 'pick' && (
+        <AssetKindPicker
+          onClose={() => setSheet(null)}
+          onPick={(kind) => (kind === 'savings' ? navigate(`${SAVINGS_FORM}/new`) : setSheet({ kind: 'create', assetKind: kind }))}
+        />
+      )}
       {sheet?.kind === 'create' && (
-        <AssetFormSheet
+        <InvestmentFormSheet
+          kind={sheet.assetKind}
           onClose={() => setSheet(null)}
           onSave={async (input) => {
             await create(input)
@@ -97,7 +112,7 @@ export default function AssetsPage() {
         />
       )}
       {sheet?.kind === 'edit' && editing && (
-        <AssetFormSheet
+        <InvestmentFormSheet
           asset={editing}
           onClose={() => setSheet(null)}
           onSave={async (input) => {

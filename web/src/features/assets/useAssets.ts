@@ -1,41 +1,44 @@
 import { useCallback, useState } from 'react'
 import { useAuth } from '@/features/auth/useAuth'
+import type { SavingsDetails } from './savings/types'
 
-export type AssetKind = 'stock' | 'etf' | 'crypto' | 'savings'
+export type InvestmentKind = 'stock' | 'etf' | 'crypto'
+export type AssetKind = InvestmentKind | 'savings'
 
-/** An investment (stock, ETF, crypto) or a savings account. Amounts are VND. */
-export interface Asset {
-  id: string
-  kind: AssetKind
-  /** Company or account name. */
-  name: string
-  // Investments only (0 / '' for savings).
-  symbol: string
+export interface InvestmentDetails {
+  symbol: string // upper case
+  /** Units held; crypto can be fractional. */
   quantity: number
-  /** Average price paid per unit. */
+  /** Average VND paid per unit. */
   costPrice: number
-  /** Price per unit now, entered by the user. */
+  /** VND per unit now, entered by the user. */
   price: number
-  // Savings only (0 for investments).
-  balance: number
-  /** Percent per year, e.g. 5.25. */
-  rate: number
 }
 
-export type AssetInput = Omit<Asset, 'id'>
+/**
+ * Common fields plus `details` that depend on `kind`, the shape the API will
+ * store as a JSON column.
+ */
+export type AssetInput = { name: string } & (
+  | { kind: InvestmentKind; details: InvestmentDetails }
+  | { kind: 'savings'; details: SavingsDetails }
+)
+export type Asset = AssetInput & { id: string }
+export type SavingsAsset = Extract<Asset, { kind: 'savings' }>
+export type InvestmentAsset = Exclude<Asset, SavingsAsset>
 
-/** Trims text and clears the other kind's fields (what the API will do too). */
 function normalize(input: AssetInput): AssetInput {
   const name = input.name.trim()
   return input.kind === 'savings'
-    ? { ...input, name, symbol: '', quantity: 0, costPrice: 0, price: 0 }
-    : { ...input, name, symbol: input.symbol.trim().toUpperCase(), balance: 0, rate: 0 }
+    ? { ...input, name, details: { ...input.details, bank: input.details.bank.trim() } }
+    : { ...input, name, details: { ...input.details, symbol: input.details.symbol.trim().toUpperCase() } }
 }
 
 function read(key: string): Asset[] {
   try {
     const stored = localStorage.getItem(key)
-    return stored ? (JSON.parse(stored) as Asset[]) : []
+    // Entries saved before `details` existed (only on this branch's test data) are skipped.
+    return stored ? (JSON.parse(stored) as Asset[]).filter((a) => a.details) : []
   } catch {
     return []
   }

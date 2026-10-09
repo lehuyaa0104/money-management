@@ -1,15 +1,11 @@
-import type { Asset, AssetKind } from './useAssets'
+import { savingsMonthlyInterest, savingsStatus } from './savings/savingsStats'
+import type { Asset, AssetKind, InvestmentAsset, SavingsAsset } from './useAssets'
 
-export const isInvestment = (a: Asset) => a.kind !== 'savings'
+export const isInvestment = (a: Asset): a is InvestmentAsset => a.kind !== 'savings'
+export const isSavings = (a: Asset): a is SavingsAsset => a.kind === 'savings'
 
-/** What an investment is worth now, or a savings balance. */
-export const assetValue = (a: Asset) => (isInvestment(a) ? Math.round(a.quantity * a.price) : a.balance)
-
-export const investmentCost = (a: Asset) => Math.round(a.quantity * a.costPrice)
-
-/** Simple interest, as banks quote term deposits. */
-export const yearlyInterest = (a: Asset) => Math.round((a.balance * a.rate) / 100)
-export const monthlyInterest = (a: Asset) => Math.round((a.balance * a.rate) / 100 / 12)
+export const investmentValue = (a: InvestmentAsset) => Math.round(a.details.quantity * a.details.price)
+export const investmentCost = (a: InvestmentAsset) => Math.round(a.details.quantity * a.details.costPrice)
 
 export interface PortfolioSummary {
   netWorth: number
@@ -23,14 +19,18 @@ export interface PortfolioSummary {
   byKind: Record<AssetKind, number>
 }
 
-export function summarize(assets: Asset[]): PortfolioSummary {
+export function summarize(assets: Asset[], today: string): PortfolioSummary {
   const byKind: Record<AssetKind, number> = { stock: 0, etf: 0, crypto: 0, savings: 0 }
   let cost = 0
   let interest = 0
   for (const a of assets) {
-    byKind[a.kind] += assetValue(a)
-    if (isInvestment(a)) cost += investmentCost(a)
-    else interest += monthlyInterest(a)
+    if (isInvestment(a)) {
+      byKind[a.kind] += investmentValue(a)
+      cost += investmentCost(a)
+    } else {
+      byKind.savings += savingsStatus(a, today).principal
+      interest += savingsMonthlyInterest(a, today)
+    }
   }
   const invested = byKind.stock + byKind.etf + byKind.crypto
   return {
