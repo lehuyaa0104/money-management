@@ -175,3 +175,29 @@ func (m *goalModel) toDomain() domain.Goal {
 		Color: m.Color, Image: m.Image, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
+
+type assetModel struct {
+	ID     string    `gorm:"type:char(36);primaryKey"`
+	UserID string    `gorm:"type:char(36);not null;index:idx_assets_user_created,priority:1"`
+	User   userModel `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	Kind   string    `gorm:"type:varchar(10);not null"`
+	Name   string    `gorm:"type:varchar(60);not null;default:''"`
+	// Kind-specific fields as a JSON document, validated by domain.Asset.Prepare before it's stored.
+	Details   []byte    `gorm:"type:json;not null"`
+	CreatedAt time.Time `gorm:"type:datetime(3);not null;index:idx_assets_user_created,priority:2"`
+	UpdatedAt time.Time `gorm:"type:datetime(3);not null"`
+}
+
+func (assetModel) TableName() string { return "assets" }
+
+func toAssetModel(a *domain.Asset) *assetModel {
+	return &assetModel{
+		ID: a.ID, UserID: a.UserID, Kind: string(a.Kind), Name: a.Name, Details: a.Details, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt,
+	}
+}
+
+func (m *assetModel) toDomain() domain.Asset {
+	return domain.Asset{
+		ID: m.ID, UserID: m.UserID, Kind: domain.AssetKind(m.Kind), Name: m.Name, Details: m.Details, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}

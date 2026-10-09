@@ -84,7 +84,7 @@ func Open(ctx context.Context, cfg Config, log *slog.Logger) (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 
-	if err := db.WithContext(ctx).AutoMigrate(&userModel{}, &refreshTokenModel{}, &categoryModel{}, &transactionModel{}, &budgetModel{}, &goalModel{}); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&userModel{}, &refreshTokenModel{}, &categoryModel{}, &transactionModel{}, &budgetModel{}, &goalModel{}, &assetModel{}); err != nil {
 		return nil, fmt.Errorf("migrate schema: %w", err)
 	}
 	return db, nil

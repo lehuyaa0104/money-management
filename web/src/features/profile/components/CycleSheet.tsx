@@ -5,7 +5,7 @@ import BottomSheet from '@/shared/ui/BottomSheet'
 import Button from '@/shared/ui/Button'
 import Field from '@/shared/ui/Field'
 import Text from '@/shared/ui/Text'
-import { inputClass } from '@/shared/ui/fieldStyles'
+import Select from '@/shared/ui/Select'
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
@@ -50,13 +50,13 @@ export default function CycleSheet({ startDay, onSave, onClose }: CycleSheetProp
           chọn 25. Tháng ít ngày hơn sẽ bắt đầu vào ngày cuối tháng.
         </Text>
         <Field label="Ngày bắt đầu" htmlFor={id}>
-          <select id={id} value={day} onChange={(e) => setDay(Number(e.target.value))} className={inputClass(false)}>
+          <Select id={id} value={day} onChange={(e) => setDay(Number(e.target.value))}>
             {DAYS.map((d) => (
               <option key={d} value={d}>
                 {d === 1 ? 'Ngày 1 (theo tháng dương lịch)' : `Ngày ${d}`}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
     </BottomSheet>

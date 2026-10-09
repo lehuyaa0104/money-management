@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Plus, Target } from 'lucide-react'
+import { PiggyBank, Plus, Target } from 'lucide-react'
 import BudgetCard from '@/features/budgets/components/BudgetCard'
 import BudgetSheet from '@/features/budgets/components/BudgetSheet'
 import BudgetSummaryCard from '@/features/budgets/components/BudgetSummaryCard'
@@ -68,12 +68,23 @@ export default function BudgetPage() {
         title="Ngân sách"
         subtitle={formatCycleLabel(cycle)}
         action={
-          <Link
-            to="/budget/goals"
-            className="flex items-center gap-2 rounded-full bg-primary-soft px-4 py-2.5 font-bold text-primary active:bg-green-200"
-          >
-            <Target className="size-5" /> Mục tiêu
-          </Link>
+          // Labels fit beside "Ngân sách" from ~393px; narrower phones get icons (labels stay for screen readers).
+          <div className="flex shrink-0 gap-2">
+            <Link
+              to="/budget/savings"
+              className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-2.5 text-sm font-bold text-blue-600 active:bg-blue-100"
+            >
+              <PiggyBank className="size-5" />
+              <span className="max-[392px]:sr-only">Tài sản</span>
+            </Link>
+            <Link
+              to="/budget/goals"
+              className="flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-2.5 text-sm font-bold text-primary active:bg-green-200"
+            >
+              <Target className="size-5" />
+              <span className="max-[392px]:sr-only">Mục tiêu</span>
+            </Link>
+          </div>
         }
       />
 
