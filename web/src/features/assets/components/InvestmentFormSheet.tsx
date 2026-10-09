@@ -10,8 +10,7 @@ import TextField from '@/shared/ui/TextField'
 import { decimalInput, parseDecimal } from '@/shared/utils/format'
 
 const KIND_OPTIONS: { value: InvestmentKind; label: string }[] = [
-  { value: 'stock', label: 'Cổ phiếu' },
-  { value: 'etf', label: 'Quỹ / ETF' },
+  { value: 'stock', label: 'Cổ phiếu / ETF' },
   { value: 'crypto', label: 'Crypto' },
 ]
 
@@ -35,7 +34,7 @@ interface InvestmentFormSheetProps {
   onClose: () => void
 }
 
-/** Stocks, funds and crypto share one form for now: symbol, quantity, cost and current price. */
+/** Stocks (ETFs included) and crypto share one form for now: symbol, quantity, cost and current price. */
 export default function InvestmentFormSheet({ asset, kind = 'stock', onSave, onRemove, onClose }: InvestmentFormSheetProps) {
   const [removing, setRemoving] = useState(false)
   const {

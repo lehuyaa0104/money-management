@@ -132,3 +132,26 @@ export function parseDecimal(value: string): number {
 export function decimalInput(value: number): string {
   return value ? String(value).replace('.', ',') : ''
 }
+
+const MONEY_MAX_DIGITS = 12 // up to 999 tỷ
+
+/**
+ * Typed text → stored value. Grouping dots are dropped; "," starts the decimals, and so
+ * does a "." typed last (a grouping dot is never last), for keyboards without a comma.
+ */
+export function parseMoneyInput(raw: string, fractionDigits = 0): string {
+  if (!fractionDigits) return raw.replace(/\D/g, '').replace(/^0+/, '').slice(0, MONEY_MAX_DIGITS)
+  const text = raw.endsWith('.') ? `${raw.slice(0, -1)},` : raw
+  const [intPart, ...rest] = text.split(',')
+  const int = intPart.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, MONEY_MAX_DIGITS)
+  if (rest.length === 0) return int
+  return `${int || '0'},${rest.join('').replace(/\D/g, '').slice(0, fractionDigits)}`
+}
+
+/** Stored value → "1.500.000" or "25.430,12". */
+export function formatMoneyInput(value: string): string {
+  if (!value) return ''
+  const [int, fraction] = value.split(',')
+  const grouped = formatNumber(Number(int || 0))
+  return fraction === undefined ? grouped : `${grouped},${fraction}`
+}

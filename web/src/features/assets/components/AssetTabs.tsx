@@ -6,7 +6,7 @@ export type AssetTab = 'all' | AssetKind
 const TABS: { value: AssetTab; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
   { value: 'stock', label: 'Cổ phiếu' },
-  { value: 'etf', label: 'Quỹ ETF' },
+  { value: 'fund', label: 'Chứng chỉ quỹ' },
   { value: 'crypto', label: 'Crypto' },
   { value: 'savings', label: 'Tiết kiệm' },
 ]

@@ -7,8 +7,8 @@ import { cn } from '@/shared/utils/cn'
 
 const CHOICES: { kind: AssetKind; title: string; hint: string }[] = [
   { kind: 'savings', title: 'Tiết kiệm ngân hàng', hint: 'Sổ tiết kiệm có hoặc không kỳ hạn' },
-  { kind: 'stock', title: 'Cổ phiếu', hint: 'Cổ phiếu niêm yết HOSE, HNX, UPCOM' },
-  { kind: 'etf', title: 'Quỹ / ETF', hint: 'Chứng chỉ quỹ, quỹ ETF' },
+  { kind: 'fund', title: 'Chứng chỉ quỹ mở', hint: 'Quỹ mở như DCDS, DCBF của Dragon Capital' },
+  { kind: 'stock', title: 'Cổ phiếu & ETF', hint: 'Niêm yết trên HOSE, HNX, UPCOM' },
   { kind: 'crypto', title: 'Crypto', hint: 'Bitcoin, Ethereum và các đồng khác' },
 ]
 

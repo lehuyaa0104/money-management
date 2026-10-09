@@ -3,6 +3,7 @@ import { GuestOnly, RequireAuth } from './features/auth/RouteGuards'
 import TabLayout from './shared/layout/TabLayout'
 import AddTransactionPage from './features/transactions/pages/AddTransactionPage'
 import AssetsPage from './features/assets/pages/AssetsPage'
+import FundDetailPage from './features/assets/funds/pages/FundDetailPage'
 import SavingsFormPage from './features/assets/savings/pages/SavingsFormPage'
 import AnalyticsPage from './features/analytics/pages/AnalyticsPage'
 import CategoriesPage from './features/categories/pages/CategoriesPage'
@@ -35,6 +36,8 @@ export default function App() {
               <Route path="/budget" element={<BudgetPage />} />
               <Route path="/budget/goals" element={<GoalsPage />} />
               <Route path="/budget/savings" element={<AssetsPage />} />
+              <Route path="/budget/savings/funds/new/:code" element={<FundDetailPage />} />
+              <Route path="/budget/savings/funds/:id" element={<FundDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
             <Route path="/transactions/new" element={<AddTransactionPage />} />

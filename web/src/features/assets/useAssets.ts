@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react'
 import { useAuth } from '@/features/auth/useAuth'
+import type { FundDetails } from './funds/types'
 import type { SavingsDetails } from './savings/types'
 
-export type InvestmentKind = 'stock' | 'etf' | 'crypto'
-export type AssetKind = InvestmentKind | 'savings'
+/** Listed ETFs count as stocks: they trade on the exchange the same way. */
+export type InvestmentKind = 'stock' | 'crypto'
+export type AssetKind = InvestmentKind | 'fund' | 'savings'
 
 export interface InvestmentDetails {
   symbol: string // upper case
@@ -21,24 +23,34 @@ export interface InvestmentDetails {
  */
 export type AssetInput = { name: string } & (
   | { kind: InvestmentKind; details: InvestmentDetails }
+  | { kind: 'fund'; details: FundDetails }
   | { kind: 'savings'; details: SavingsDetails }
 )
 export type Asset = AssetInput & { id: string }
 export type SavingsAsset = Extract<Asset, { kind: 'savings' }>
-export type InvestmentAsset = Exclude<Asset, SavingsAsset>
+export type FundAsset = Extract<Asset, { kind: 'fund' }>
+export type InvestmentAsset = Extract<Asset, { kind: InvestmentKind }>
 
 function normalize(input: AssetInput): AssetInput {
   const name = input.name.trim()
-  return input.kind === 'savings'
-    ? { ...input, name, details: { ...input.details, bank: input.details.bank.trim() } }
-    : { ...input, name, details: { ...input.details, symbol: input.details.symbol.trim().toUpperCase() } }
+  switch (input.kind) {
+    case 'savings':
+      return { ...input, name, details: { ...input.details, bank: input.details.bank.trim() } }
+    case 'fund':
+      return { ...input, name, details: { ...input.details, code: input.details.code.trim().toUpperCase() } }
+    default:
+      return { ...input, name, details: { ...input.details, symbol: input.details.symbol.trim().toUpperCase() } }
+  }
 }
 
 function read(key: string): Asset[] {
   try {
     const stored = localStorage.getItem(key)
     // Entries saved before `details` existed (only on this branch's test data) are skipped.
-    return stored ? (JSON.parse(stored) as Asset[]).filter((a) => a.details) : []
+    // ETFs were a kind of their own on this branch before; they're stocks now.
+    return stored
+      ? (JSON.parse(stored) as Asset[]).filter((a) => a.details).map((a) => ((a.kind as string) === 'etf' ? { ...a, kind: 'stock' } : a) as Asset)
+      : []
   } catch {
     return []
   }
@@ -66,7 +78,15 @@ export function useAssets() {
   )
 
   // Async like the other features' API calls, so the sheets can stay the same once this moves to the server.
-  const create = useCallback(async (input: AssetInput) => save((list) => [{ id: newId(), ...normalize(input) }, ...list]), [save])
+  /** Resolves to the new asset's id. */
+  const create = useCallback(
+    async (input: AssetInput) => {
+      const id = newId()
+      save((list) => [{ id, ...normalize(input) } as Asset, ...list])
+      return id
+    },
+    [save],
+  )
   const update = useCallback(
     async (id: string, input: AssetInput) => save((list) => list.map((a) => (a.id === id ? { id, ...normalize(input) } : a))),
     [save],
