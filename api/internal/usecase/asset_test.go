@@ -55,6 +55,26 @@ func TestDebts(t *testing.T) {
 	if _, err := uc.Create(ctx, "u1", usecase.AssetInput{Kind: "debt", Details: []byte(over)}); errCode(err) != "debt_overpaid" {
 		t.Fatalf("overpaid = %v", err)
 	}
+
+	// A credit card: nothing at first, each purchase borrowed later; repayments count against
+	// everything borrowed. Debts saved before borrowings existed come back with [].
+	if !strings.Contains(string(debt.Details), `"borrowings":[]`) || !strings.Contains(string(debt.Details), `"categoryId":""`) {
+		t.Fatalf("old-shape debt: %s", debt.Details)
+	}
+	card := `{"type":"credit_card","lender":"VIB","amount":0,"categoryId":"","rate":0,"startDate":"2026-09-01","dueDate":"",
+		"borrowings":[{"id":"b1","date":"2026-09-05","amount":1200000,"categoryId":"cat-food","note":" Ăn tối "},{"id":"b2","date":"2026-09-20","amount":800000,"categoryId":"","note":""}],
+		"payments":[{"id":"p1","date":"2026-10-01","amount":2000000}]}`
+	c, err := uc.Create(ctx, "u1", usecase.AssetInput{Kind: "debt", Details: []byte(card)})
+	if err != nil {
+		t.Fatalf("credit card = %v", err)
+	}
+	var cd domain.DebtDetails
+	if err := json.Unmarshal(c.Details, &cd); err != nil || cd.Borrowings[0].Note != "Ăn tối" || cd.Borrowings[0].CategoryID != "cat-food" {
+		t.Fatalf("card not normalized: %s %v", c.Details, err)
+	}
+	if _, err := uc.Create(ctx, "u1", usecase.AssetInput{Kind: "debt", Details: []byte(strings.Replace(card, `"amount":2000000}`, `"amount":2000001}`, 1))}); errCode(err) != "debt_overpaid" {
+		t.Fatalf("card overpaid = %v", err)
+	}
 }
 
 func TestAssets(t *testing.T) {
@@ -143,7 +163,11 @@ func TestAssetValidation(t *testing.T) {
 		{"savings", set(savingsJSON, "onMaturity", `""`), "on_maturity_invalid"},
 		{"debt", set(debtJSON, "type", `"loan"`), "debt_type_invalid"},
 		{"debt", set(debtJSON, "lender", `" "`), "lender_required"},
-		{"debt", set(debtJSON, "amount", `0`), "amount_invalid"},
+		{"debt", set(debtJSON, "amount", `-1`), "amount_invalid"},
+		{"debt", set(debtJSON, "borrowings", `[{"id":"b","date":"2026-02-10","amount":1,"categoryId":"","note":""},{"id":"b","date":"2026-03-10","amount":1,"categoryId":"","note":""}]`), "borrowing_id_invalid"},
+		{"debt", set(debtJSON, "borrowings", `[{"id":"b","date":"2026-02-10","amount":0,"categoryId":"","note":""}]`), "amount_invalid"},
+		{"debt", set(debtJSON, "borrowings", `[{"id":"b","date":"2026-11-10","amount":1,"categoryId":"","note":""}]`), "date_in_future"},
+		{"debt", set(debtJSON, "borrowings", `[{"id":"b","date":"2026-02-10","amount":1,"categoryId":"","note":"","tip":1}]`), "details_invalid"},
 		{"debt", set(debtJSON, "rate", `-1`), "rate_invalid"},
 		{"debt", set(debtJSON, "startDate", `"2026-10-20"`), "date_in_future"},
 		{"debt", set(debtJSON, "dueDate", `"2025-12-31"`), "due_date_invalid"},

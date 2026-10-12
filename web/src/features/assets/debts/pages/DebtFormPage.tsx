@@ -1,7 +1,9 @@
 import { useId, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
+import CategoryPicker from '@/features/assets/debts/components/CategoryPicker'
 import { DEBT_TYPES } from '@/features/assets/debts/debtOptions'
+import { debtStatus } from '@/features/assets/debts/debtStats'
 import type { DebtType } from '@/features/assets/debts/types'
 import { useAssets } from '@/features/assets/useAssets'
 import PageHeader from '@/shared/layout/PageHeader'
@@ -19,6 +21,7 @@ interface FormValues {
   lender: string
   name: string
   amount: string
+  categoryId: string
   rate: string
   startDate: string
   dueDate: string
@@ -52,23 +55,28 @@ export default function DebtFormPage() {
       lender: d?.lender ?? '',
       name: editing?.name ?? '',
       amount: d ? String(d.amount) : '',
+      categoryId: d?.categoryId ?? '',
       rate: decimalInput(d?.rate ?? 0),
       startDate: d?.startDate ?? todayISO(),
       dueDate: d?.dueDate ?? '',
     },
   })
-  const type = useWatch({ control, name: 'type' })
-  const paid = d?.payments.reduce((sum, p) => sum + p.amount, 0) ?? 0
+  const [type, categoryId] = useWatch({ control, name: ['type', 'categoryId'] })
+  // Edits can't leave more repaid than borrowed: the first loan must cover what later borrowings don't.
+  const status = d && debtStatus(d, todayISO())
+  const minAmount = status ? Math.max(0, status.paid - (status.borrowed - d.amount)) : 0
 
   const submit = async (v: FormValues) => {
     setSaving(true)
     const details = {
       type: v.type,
       lender: v.lender,
-      amount: Number(v.amount),
+      amount: Number(v.amount || 0),
+      categoryId: v.categoryId,
       rate: v.rate.trim() === '' ? 0 : parseDecimal(v.rate),
       startDate: v.startDate,
       dueDate: v.dueDate,
+      borrowings: d?.borrowings ?? [],
       payments: d?.payments ?? [],
     }
     try {
@@ -131,16 +139,17 @@ export default function DebtFormPage() {
           name="amount"
           control={control}
           rules={{
-            validate: (v) => {
-              const n = Number(v)
-              if (!(n > 0)) return 'Vui lòng nhập số tiền vay'
-              return n >= paid || 'Không được nhỏ hơn số đã trả'
-            },
+            validate: (v) => Number(v || 0) >= minAmount || 'Số đã trả sẽ vượt quá tổng số đã vay',
           }}
           render={({ field, fieldState }) => (
-            <MoneyField label="Số tiền vay (gốc)" ref={field.ref} name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+            <MoneyField
+              label="Số tiền vay ban đầu"
+              placeholder={type === 'credit_card' ? '0 nếu ghi từng lần quẹt' : '0'}
+              ref={field.ref} name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
           )}
         />
+
+        <CategoryPicker label="Vay để làm gì (không bắt buộc)" value={categoryId} onChange={(id) => setValue('categoryId', id)} />
 
         <TextField
           label="Lãi suất (%/năm, không bắt buộc)"
