@@ -1,8 +1,4 @@
-const currencyFormatter = new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-  maximumFractionDigits: 0,
-})
+import { displayCurrency, formatInDisplayCurrency, fromVnd, isVnd } from './currency'
 
 const decimalFormatter = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 })
 
@@ -10,12 +6,22 @@ const timeFormatter = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute
 
 const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 
+/** A stored VND amount, in the user's display currency. */
 export function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount)
+  return formatInDisplayCurrency(amount)
 }
 
-/** Short amounts for tight spaces: 950 ₫, 250k, 8,4 tr, 1,3 tỷ. */
+let compactFormatter: Intl.NumberFormat | null = null
+
+/** Short amounts for tight spaces: 950 ₫, 250k, 8,4 tr, 1,3 tỷ; other currencies "1,2 N US$". */
 export function formatCompactCurrency(amount: number): string {
+  if (!isVnd()) {
+    const { code } = displayCurrency()
+    if (compactFormatter?.resolvedOptions().currency !== code) {
+      compactFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: code, notation: 'compact', maximumFractionDigits: 1 })
+    }
+    return compactFormatter.format(fromVnd(amount))
+  }
   const sign = amount < 0 ? '-' : ''
   const abs = Math.abs(amount)
   if (abs >= 1e9) return `${sign}${decimalFormatter.format(abs / 1e9)} tỷ`

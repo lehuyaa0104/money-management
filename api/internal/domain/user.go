@@ -18,7 +18,13 @@ const (
 	CycleStartDayMax = 31
 )
 
-var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+var (
+	usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
+)
+
+// DefaultCurrency is what amounts are stored in, and shown in until the user picks another.
+const DefaultCurrency = "VND"
 
 // A validation error (400), not 401: the session is fine, only the typed password is wrong.
 var ErrCurrentPasswordWrong = Validation("current_password_wrong", "Mật khẩu hiện tại không đúng")
@@ -30,7 +36,10 @@ type User struct {
 	PasswordHash string
 	// Day of month the user's budgeting cycle starts on (e.g. payday), 1 = calendar months.
 	CycleStartDay int
-	CreatedAt     time.Time
+	// Currency amounts are shown in (ISO 4217, e.g. USD). Amounts are always stored in VND
+	// and converted for display with the day's exchange rate.
+	Currency  string
+	CreatedAt time.Time
 }
 
 type UserRepository interface {
@@ -38,7 +47,8 @@ type UserRepository interface {
 	// FindByUsername matches case-insensitively; returns ErrNotFound if absent.
 	FindByUsername(ctx context.Context, username string) (*User, error)
 	FindByID(ctx context.Context, id string) (*User, error)
-	UpdateCycleStartDay(ctx context.Context, id string, day int) error
+	// UpdateSettings saves the user's cycle start day and display currency.
+	UpdateSettings(ctx context.Context, user *User) error
 	UpdatePasswordHash(ctx context.Context, id, hash string) error
 }
 
@@ -81,6 +91,14 @@ func ValidateFullName(fullName string) error {
 func ValidateCycleStartDay(day int) error {
 	if day < CycleStartDayMin || day > CycleStartDayMax {
 		return Validation("cycle_start_day_invalid", "Ngày bắt đầu chu kỳ phải từ 1 đến 31")
+	}
+	return nil
+}
+
+// ValidateCurrency accepts any ISO 4217 code; one without an exchange rate is shown in VND.
+func ValidateCurrency(code string) error {
+	if !currencyPattern.MatchString(code) {
+		return Validation("currency_invalid", "Loại tiền tệ không hợp lệ")
 	}
 	return nil
 }

@@ -132,26 +132,35 @@ func TestMe(t *testing.T) {
 	}
 }
 
-func TestSetCycleStartDay(t *testing.T) {
+func TestUpdateSettings(t *testing.T) {
 	ctx := context.Background()
 	uc, _ := newAuth(t)
 	res, _ := uc.Register(ctx, usecase.RegisterInput{FullName: "A", Username: "demo_user", Password: "demo12345"})
-	if res.User.CycleStartDay != 1 {
-		t.Fatalf("new user cycle starts on %d, want 1", res.User.CycleStartDay)
+	if res.User.CycleStartDay != 1 || res.User.Currency != "VND" {
+		t.Fatalf("new user defaults: day %d, currency %q", res.User.CycleStartDay, res.User.Currency)
 	}
-
-	if _, err := uc.SetCycleStartDay(ctx, res.User.ID, 25); err != nil {
+	day, currency := 25, " usd "
+	if _, err := uc.UpdateSettings(ctx, res.User.ID, usecase.SettingsInput{CycleStartDay: &day}); err != nil {
 		t.Fatal(err)
 	}
-	if user, _ := uc.Me(ctx, res.User.ID); user.CycleStartDay != 25 {
-		t.Fatalf("stored cycle start day = %d, want 25", user.CycleStartDay)
+	// Only the fields given change.
+	if _, err := uc.UpdateSettings(ctx, res.User.ID, usecase.SettingsInput{Currency: &currency}); err != nil {
+		t.Fatal(err)
 	}
-	for _, day := range []int{0, 32} {
-		if _, err := uc.SetCycleStartDay(ctx, res.User.ID, day); errCode(err) != "cycle_start_day_invalid" {
-			t.Fatalf("day %d = %v", day, err)
+	if user, _ := uc.Me(ctx, res.User.ID); user.CycleStartDay != 25 || user.Currency != "USD" {
+		t.Fatalf("stored: day %d, currency %q", user.CycleStartDay, user.Currency)
+	}
+	for _, bad := range []int{0, 32} {
+		if _, err := uc.UpdateSettings(ctx, res.User.ID, usecase.SettingsInput{CycleStartDay: &bad}); errCode(err) != "cycle_start_day_invalid" {
+			t.Fatalf("day %d = %v", bad, err)
 		}
 	}
-	if _, err := uc.SetCycleStartDay(ctx, "deleted-user", 5); !errors.Is(err, domain.ErrUnauthorized) {
+	for _, bad := range []string{"", "US", "US$", "1234"} {
+		if _, err := uc.UpdateSettings(ctx, res.User.ID, usecase.SettingsInput{Currency: &bad}); errCode(err) != "currency_invalid" {
+			t.Fatalf("currency %q = %v", bad, err)
+		}
+	}
+	if _, err := uc.UpdateSettings(ctx, "deleted-user", usecase.SettingsInput{CycleStartDay: &day}); !errors.Is(err, domain.ErrUnauthorized) {
 		t.Fatalf("missing user = %v", err)
 	}
 }

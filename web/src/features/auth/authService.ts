@@ -34,14 +34,16 @@ interface ApiUser {
   fullName: string
   createdAt: string
   cycleStartDay: number
+  currency: string
 }
 
-const toUser = ({ id, username, fullName, createdAt, cycleStartDay }: ApiUser): User => ({
+const toUser = ({ id, username, fullName, createdAt, cycleStartDay, currency }: ApiUser): User => ({
   id,
   username,
   fullName,
   createdAt,
   cycleStartDay,
+  currency,
 })
 
 function startSession(user: User, token?: StoredToken): User {
@@ -81,8 +83,9 @@ export async function refreshUser(): Promise<User> {
 }
 
 /** Throws ApiError on failure. */
-export async function updateCycleStartDay(cycleStartDay: number): Promise<User> {
-  const { data } = await api.patch<{ user: ApiUser }>('/auth/me', { cycleStartDay })
+/** Changes only the settings given. Throws ApiError. */
+export async function updateSettings(settings: { cycleStartDay?: number; currency?: string }): Promise<User> {
+  const { data } = await api.patch<{ user: ApiUser }>('/auth/me', settings)
   return startSession(toUser(data.user))
 }
 

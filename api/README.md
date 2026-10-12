@@ -31,7 +31,7 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 | `POST` | `/api/v1/auth/refresh` | `{refreshToken}` → `200 {token, expiresAt, refreshToken, user}`; không cần header `Authorization`. Mỗi refresh token chỉ dùng được **một lần**, phải lưu token mới (`401` nếu sai, đã dùng hoặc hết hạn) |
 | `GET` | `/api/v1/auth/me` | Header `Authorization: Bearer <token>` → `200 {user}` |
 | `PUT` | `/api/v1/auth/password` | `{currentPassword, newPassword}` → `200 {token, expiresAt, refreshToken, user}` (`400 current_password_wrong` nếu sai mật khẩu hiện tại). Mọi phiên đăng nhập khác bị huỷ |
-| `PATCH` | `/api/v1/auth/me` | `{cycleStartDay}` (1–31) → `200 {user}` — ngày bắt đầu chu kỳ tháng của user |
+| `PATCH` | `/api/v1/auth/me` | `{cycleStartDay?, currency?}` → `200 {user}`: ngày bắt đầu chu kỳ (1–31) và tiền tệ hiển thị (mã ISO 4217, vd `USD`); trường không gửi thì giữ nguyên |
 | `GET` | `/api/v1/categories` | Danh mục của user (theo thứ tự tạo) → `{categories}` |
 | `POST` | `/api/v1/categories` | `{type, name, icon, color}` → `201 {category}` |
 | `POST` | `/api/v1/categories/defaults` | Thêm các danh mục mặc định còn thiếu → `{created, categories}` (gọi lại không tạo trùng) |
@@ -55,6 +55,7 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 | `PUT` | `/api/v1/assets/:id` | Cùng body như khi tạo → `200 {asset}`; thay toàn bộ `kind`, `name`, `details` |
 | `DELETE` | `/api/v1/assets/:id` | Xoá tài sản → `204` (`404` nếu không tồn tại hoặc của người khác) |
 | `GET` | `/api/v1/funds/navs` | NAV mới nhất của các quỹ Dragon Capital (DCDS, DCDE, DCBF, DCIP, DCBA) → `{navs: [{code, nav, navDate}]}` |
+| `GET` | `/api/v1/rates` | Tỷ giá hôm nay → `{rates: [{code, name, vnd}]}` (`vnd` = số VND cho 1 đơn vị) |
 | `GET` | `/healthz` | Kiểm tra server + kết nối database |
 
 Phiên đăng nhập: `token` (JWT, sống `JWT_TTL`, mặc định 15 phút) gửi kèm mọi request; khi hết hạn, gọi `/auth/refresh` với `refreshToken` (sống `REFRESH_TTL`, mặc định 30 ngày, tính từ lần refresh gần nhất) để lấy cặp mới. Server chỉ lưu hash SHA-256 của refresh token. Đổi mật khẩu xoá mọi refresh token của user: thiết bị khác bị đăng xuất khi access token của chúng hết hạn (≤ `JWT_TTL`).
@@ -112,3 +113,5 @@ Tài sản: phần chung (`kind`, `name` ≤ 60 ký tự) là cột thường; p
 - `kind: "fund"` (chứng chỉ quỹ mở): `{code, manager, nav, navDate, transactions}`. `code` ≤ 15 ký tự (tự viết hoa); `nav` ≥ 0 (VND/CCQ, được có số lẻ), `navDate` có thể rỗng; `transactions` tối đa 1000 dòng `{id, type: buy|sell, date, units, amount, nav}` với `id` không trùng, `units` > 0 (được có số lẻ), `amount` 1 → 999 tỷ, `nav` > 0. Xếp theo ngày mà có lần bán vượt số CCQ đang có lúc đó → `400 fund_oversold`.
 
 NAV quỹ: server lấy từ API mà web của Fmarket (fmarket.vn) đang dùng (không phải API công bố chính thức, có thể đổi bất cứ lúc nào) và giữ kết quả 1 giờ, nên mỗi quỹ bị gọi tối đa 1 lần/giờ. Lần lấy lại bị lỗi thì vẫn trả kết quả cũ. Fmarket vẫn dùng mã cũ của Dragon Capital (DCDS = VFMVF1, DCDE = VFMVF4, DCBF = VFMVFB, DCIP = VFMVFC), bảng đối chiếu nằm trong `infrastructure/fmarket`. Web dùng NAV mới nhất trong ba nguồn: NAV này, NAV người dùng tự nhập, NAV của giao dịch gần nhất.
+
+Tiền tệ: mọi số tiền **luôn lưu bằng VND**. `user.currency` (mặc định `VND`) chỉ là loại tiền web dùng để hiển thị và nhập: web đổi VND sang loại tiền đó theo tỷ giá hôm nay, và đổi ngược sang VND (làm tròn đồng) khi lưu. Tỷ giá lấy từ file XML công khai của Vietcombank (tỷ giá chuyển khoản; không có thì dùng giá bán), giữ 1 giờ, lấy lỗi thì dùng kết quả cũ. Đây cũng không phải API có tài liệu chính thức.

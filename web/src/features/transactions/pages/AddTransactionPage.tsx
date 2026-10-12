@@ -16,7 +16,8 @@ import { CATEGORY_ICONS, FALLBACK_ICON } from '@/features/categories/icons'
 import { useCategories } from '@/features/categories/useCategories'
 import { ApiError } from '@/shared/api/apiClient'
 import { cn } from '@/shared/utils/cn'
-import { formatFullDate, formatNumber, nowTime, toTimeValue, toTimestamp, todayISO } from '@/shared/utils/format'
+import { formatFullDate, formatMoneyInput, nowTime, todayISO, toTimestamp, toTimeValue } from '@/shared/utils/format'
+import { currencySymbol, fromInputText, inputDecimals, toInputText } from '@/shared/utils/currency'
 
 interface FormValues {
   type: TransactionType
@@ -87,7 +88,7 @@ export default function AddTransactionPage() {
   const [defaultValues] = useState<FormValues>(() => {
     if (editing) {
       const { type, amount, category, date, note, createdAt } = editing
-      return { type, amount: String(amount), category, date, time: toTimeValue(createdAt), note }
+      return { type, amount: toInputText(String(amount)), category, date, time: toTimeValue(createdAt), note }
     }
     const type = params.get('type') === 'income' ? 'income' : 'expense'
     // The category is picked once the user's categories have loaded (see the effect below).
@@ -107,13 +108,14 @@ export default function AddTransactionPage() {
   })
   // The keypad and chips aren't native inputs, so their fields are registered for validation only.
   useEffect(() => {
-    register('amount', { validate: (v) => Number(v) > 0 || 'Vui lòng nhập số tiền' })
+    register('amount', { validate: (v) => Number(fromInputText(v)) > 0 || 'Vui lòng nhập số tiền' })
     register('category', { validate: (v) => v !== '' || 'Vui lòng chọn danh mục' })
   }, [register])
 
   const [type, amount, category, date, time] = useWatch({ control, name: ['type', 'amount', 'category', 'date', 'time'] })
   const style = TYPE_STYLE[type]
-  const display = formatNumber(Number(amount || 0))
+  // `amount` is the typed text in the display currency; it becomes VND when saved.
+  const display = formatMoneyInput(amount) || '0'
 
   // The user's own categories (from the API) for the selected type.
   const categories = useCategories()
@@ -144,7 +146,7 @@ export default function AddTransactionPage() {
     else if (invalid.date) showToast(invalid.date.message ?? 'Vui lòng chọn ngày')
   }
 
-  const onKey = (key: KeypadKey) => setValue('amount', pressKey(getValues('amount'), key), { shouldValidate: true })
+  const onKey = (key: KeypadKey) => setValue('amount', pressKey(getValues('amount'), key, inputDecimals()), { shouldValidate: true })
 
   const onSubmit = async (values: FormValues) => {
     const categoryId = options.find((c) => c.name === values.category)?.id
@@ -154,7 +156,8 @@ export default function AddTransactionPage() {
     }
     const input = {
       type: values.type,
-      amount: Number(values.amount),
+      // An untouched amount keeps its exact VND: converting the shown value back could shift it by a few đồng.
+      amount: editing && values.amount === defaultValues.amount ? editing.amount : Number(fromInputText(values.amount)),
       categoryId,
       date: values.date,
       note: values.note.trim(),
@@ -202,7 +205,7 @@ export default function AddTransactionPage() {
           >
             {style.sign}
             {display}
-            <span className="ml-1 align-top text-[0.55em]">₫</span>
+            <span className="ml-1 align-top text-[0.55em]">{currencySymbol()}</span>
           </p>
         </div>
       </div>

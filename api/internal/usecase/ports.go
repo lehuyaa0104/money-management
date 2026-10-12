@@ -24,6 +24,11 @@ type NavSource interface {
 	LatestNavs(ctx context.Context) ([]domain.FundNav, error)
 }
 
+// RateSource fetches today's VND exchange rates (from a bank).
+type RateSource interface {
+	LatestRates(ctx context.Context) ([]domain.ExchangeRate, error)
+}
+
 // Clock and IDGenerator are injected so tests can control time and IDs.
 type (
 	Clock       func() time.Time
