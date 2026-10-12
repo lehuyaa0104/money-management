@@ -16,7 +16,7 @@ import (
 type BudgetService interface {
 	Create(ctx context.Context, userID string, in usecase.CreateBudgetInput) (*domain.Budget, error)
 	List(ctx context.Context, userID, month string, startDay int) ([]domain.BudgetUsage, error)
-	UpdateLimit(ctx context.Context, userID, id string, limit int64) (*domain.Budget, error)
+	Update(ctx context.Context, userID, id string, in usecase.UpdateBudgetInput) (*domain.Budget, error)
 	Delete(ctx context.Context, userID, id string) error
 }
 
@@ -27,21 +27,23 @@ func NewBudgetHandler(budgets BudgetService) *BudgetHandler { return &BudgetHand
 type createBudgetRequest struct {
 	CategoryID string `json:"categoryId"`
 	Limit      int64  `json:"limit"`
+	Priority   string `json:"priority"` // essential | important | optional; optional field, default important
 }
 
 type budgetResponse struct {
 	ID         string    `json:"id"`
 	CategoryID string    `json:"categoryId"`
 	Limit      int64     `json:"limit"`
+	Priority   string    `json:"priority"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 func toBudgetResponse(b *domain.Budget) budgetResponse {
-	return budgetResponse{ID: b.ID, CategoryID: b.CategoryID, Limit: b.Limit, CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt}
+	return budgetResponse{ID: b.ID, CategoryID: b.CategoryID, Limit: b.Limit, Priority: b.Priority, CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt}
 }
 
-// Create godoc: POST /api/v1/budgets {categoryId, limit} → 201 {budget}
+// Create godoc: POST /api/v1/budgets {categoryId, limit, priority?} → 201 {budget}
 // The limit applies to every month; a category can have only one budget (409 budget_exists).
 func (h *BudgetHandler) Create(c *gin.Context) {
 	var req createBudgetRequest
@@ -50,7 +52,7 @@ func (h *BudgetHandler) Create(c *gin.Context) {
 		return
 	}
 	budget, err := h.budgets.Create(c.Request.Context(), middleware.UserID(c), usecase.CreateBudgetInput{
-		CategoryID: req.CategoryID, Limit: req.Limit,
+		CategoryID: req.CategoryID, Limit: req.Limit, Priority: req.Priority,
 	})
 	if err != nil {
 		WriteError(c, err)
@@ -91,17 +93,18 @@ func (h *BudgetHandler) List(c *gin.Context) {
 }
 
 type updateBudgetRequest struct {
-	Limit int64 `json:"limit"`
+	Limit    int64  `json:"limit"`
+	Priority string `json:"priority"` // omitted = unchanged
 }
 
-// Update godoc: PUT /api/v1/budgets/:id {limit} → 200 {budget}
+// Update godoc: PUT /api/v1/budgets/:id {limit, priority?} → 200 {budget}
 func (h *BudgetHandler) Update(c *gin.Context) {
 	var req updateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeBadRequest(c)
 		return
 	}
-	budget, err := h.budgets.UpdateLimit(c.Request.Context(), middleware.UserID(c), c.Param("id"), req.Limit)
+	budget, err := h.budgets.Update(c.Request.Context(), middleware.UserID(c), c.Param("id"), usecase.UpdateBudgetInput{Limit: req.Limit, Priority: req.Priority})
 	if err != nil {
 		WriteError(c, err)
 		return

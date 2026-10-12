@@ -65,12 +65,12 @@ func (r *MemoryBudgets) FindByID(_ context.Context, userID, id string) (*domain.
 	return nil, domain.ErrNotFound
 }
 
-func (r *MemoryBudgets) UpdateLimit(_ context.Context, b *domain.Budget) error {
+func (r *MemoryBudgets) Update(_ context.Context, b *domain.Budget) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := range r.Budgets {
 		if r.Budgets[i].ID == b.ID && r.Budgets[i].UserID == b.UserID {
-			r.Budgets[i].Limit, r.Budgets[i].UpdatedAt = b.Limit, b.UpdatedAt
+			r.Budgets[i].Limit, r.Budgets[i].Priority, r.Budgets[i].UpdatedAt = b.Limit, b.Priority, b.UpdatedAt
 			return nil
 		}
 	}

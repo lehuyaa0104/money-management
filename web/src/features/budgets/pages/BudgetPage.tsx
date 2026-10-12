@@ -4,6 +4,7 @@ import { Plus, Target } from 'lucide-react'
 import BudgetCard from '@/features/budgets/components/BudgetCard'
 import BudgetSheet from '@/features/budgets/components/BudgetSheet'
 import BudgetSummaryCard from '@/features/budgets/components/BudgetSummaryCard'
+import { BUDGET_PRIORITIES } from '@/features/budgets/budgetPriority'
 import { useBudgets } from '@/features/budgets/useBudgets'
 import { toCategoryMeta } from '@/features/categories/meta'
 import { useCategories } from '@/features/categories/useCategories'
@@ -114,16 +115,28 @@ export default function BudgetPage() {
               </Card>
             )}
 
-            {budgeted.map((c) => {
-              const budget = budgetFor.get(c.id)!
+            {/* Most important first, so what to cut when money runs short sits at the bottom. */}
+            {BUDGET_PRIORITIES.map((p) => {
+              const group = budgeted.filter((c) => budgetFor.get(c.id)?.priority === p.value)
+              if (group.length === 0) return null
               return (
-                <BudgetCard
-                  key={c.id}
-                  category={toCategoryMeta(c)}
-                  limit={budget.limit}
-                  spent={budget.spent}
-                  onEdit={() => setEditing(c.id)}
-                />
+                <section key={p.value} className="flex flex-col gap-3">
+                  <Text as="h2" variant="label" tone="muted" className="px-1">
+                    {p.label}
+                  </Text>
+                  {group.map((c) => {
+                    const budget = budgetFor.get(c.id)!
+                    return (
+                      <BudgetCard
+                        key={c.id}
+                        category={toCategoryMeta(c)}
+                        limit={budget.limit}
+                        spent={budget.spent}
+                        onEdit={() => setEditing(c.id)}
+                      />
+                    )
+                  })}
+                </section>
               )
             })}
 
@@ -181,11 +194,12 @@ export default function BudgetPage() {
         <BudgetSheet
           category={toCategoryMeta(editingCategory)}
           limit={editingBudget?.limit}
+          priority={editingBudget?.priority}
           spent={editingBudget?.spent ?? spentBy.get(editingCategory.id) ?? 0}
           onClose={() => setEditing(null)}
-          onSave={async (limit) => {
-            if (editingBudget) await budgets.update(editingBudget.id, limit)
-            else await budgets.create(editingCategory.id, limit)
+          onSave={async (limit, priority) => {
+            if (editingBudget) await budgets.update(editingBudget.id, limit, priority)
+            else await budgets.create(editingCategory.id, limit, priority)
             setEditing(null)
           }}
           onRemove={async () => {

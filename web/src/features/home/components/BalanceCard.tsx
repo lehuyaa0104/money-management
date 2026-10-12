@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, Eye, EyeOff, type LucideIcon } from 'lucid
 import type { Transaction } from '@/features/transactions/types'
 import { cn } from '@/shared/utils/cn'
 import { formatCompactCurrency, formatCurrency, todayISO } from '@/shared/utils/format'
-import { cycleAt, inCycle, sumBy, totalBalance } from '@/features/transactions/stats'
+import { cycleAt, formatCycleLabel, inCycle, sumBy, totalBalance } from '@/features/transactions/stats'
 import { useCycleStartDay } from '@/features/auth/useAuth'
 import Text from '@/shared/ui/Text'
 
@@ -17,7 +17,8 @@ export default function BalanceCard({ transactions }: BalanceCardProps) {
   const [hidden, setHidden] = useState(false)
 
   const balance = formatCurrency(totalBalance(transactions))
-  const thisMonth = inCycle(transactions, cycleAt(todayISO(), useCycleStartDay()))
+  const cycle = cycleAt(todayISO(), useCycleStartDay())
+  const thisMonth = inCycle(transactions, cycle)
   const income = sumBy(thisMonth, 'income')
   const expense = sumBy(thisMonth, 'expense')
 
@@ -51,7 +52,7 @@ export default function BalanceCard({ transactions }: BalanceCardProps) {
         </Text>
 
         <Text variant="caption" tone="inverse-muted" className="mt-5 text-xs">
-          Tháng này
+          {formatCycleLabel(cycle)}
         </Text>
         <div className="mt-2 grid grid-cols-2 gap-2.5">
           {stats.map(({ label, icon: Icon, value }) => (

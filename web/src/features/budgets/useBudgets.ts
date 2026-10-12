@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '@/shared/api/apiClient'
-import { createBudget, deleteBudget, listBudgets, updateBudget, type BudgetUsage } from './budgetApi'
+import { createBudget, deleteBudget, listBudgets, updateBudget, type BudgetPriority, type BudgetUsage } from './budgetApi'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -41,15 +41,15 @@ export function useBudgets(month: string, startDay: number) {
 
   // Mutations throw ApiError on failure so the caller (the sheet) can show it.
   const create = useCallback(
-    async (categoryId: string, limit: number) => {
-      await createBudget(categoryId, limit)
+    async (categoryId: string, limit: number, priority: BudgetPriority) => {
+      await createBudget(categoryId, limit, priority)
       reload()
     },
     [reload],
   )
   const update = useCallback(
-    async (id: string, limit: number) => {
-      await updateBudget(id, limit)
+    async (id: string, limit: number, priority: BudgetPriority) => {
+      await updateBudget(id, limit, priority)
       reload()
     },
     [reload],
