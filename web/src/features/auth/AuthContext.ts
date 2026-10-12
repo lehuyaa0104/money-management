@@ -8,6 +8,8 @@ export interface AuthContextValue {
   logout: () => Promise<void>
   /** Saves on the server; throws ApiError on failure. */
   setCycleStartDay: (day: number) => Promise<void>
+  /** Saves the display currency on the server; throws ApiError on failure. */
+  setCurrency: (code: string) => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

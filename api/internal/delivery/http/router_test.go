@@ -43,6 +43,7 @@ func newTestServer(t *testing.T) http.Handler {
 		Goals:         usecase.NewGoalUsecase(&testutil.MemoryGoals{}, time.Now, uuid.NewString),
 		Assets:        usecase.NewAssetUsecase(&testutil.MemoryAssets{}, time.Now, uuid.NewString),
 		FundNavs:      fakeNavs{},
+		Rates:         fakeRates{},
 		TokenVerifier: jwtService,
 		PingDB:        func(context.Context) error { return nil },
 	})
@@ -116,6 +117,10 @@ func TestAuthFlow(t *testing.T) {
 	}
 	if r := do(t, h, "PATCH", "/api/v1/auth/me", `{"cycleStartDay":25}`, token); r.status != http.StatusOK || r.body["user"].(map[string]any)["cycleStartDay"] != float64(25) {
 		t.Fatalf("set cycleStartDay = %d %v", r.status, r.body)
+	}
+	if r := do(t, h, "PATCH", "/api/v1/auth/me", `{"currency":"EUR"}`, token); r.status != http.StatusOK ||
+		r.body["user"].(map[string]any)["currency"] != "EUR" || r.body["user"].(map[string]any)["cycleStartDay"] != float64(25) {
+		t.Fatalf("set currency (cycle day kept) = %d %v", r.status, r.body)
 	}
 	if r := do(t, h, "PATCH", "/api/v1/auth/me", `{"cycleStartDay":32}`, token); r.status != http.StatusBadRequest || errorCode(r) != "cycle_start_day_invalid" {
 		t.Fatalf("bad cycleStartDay = %d %v", r.status, r.body)
@@ -550,5 +555,23 @@ func TestFundNavs(t *testing.T) {
 	nav, _ := r.body["navs"].([]any)
 	if r.status != http.StatusOK || len(nav) != 1 || nav[0].(map[string]any)["navDate"] != "2026-10-09" || nav[0].(map[string]any)["nav"] != 93099.64 {
 		t.Fatalf("navs = %d %v", r.status, r.body)
+	}
+}
+
+type fakeRates struct{}
+
+func (fakeRates) Latest(context.Context) ([]domain.ExchangeRate, error) {
+	return []domain.ExchangeRate{{Code: "USD", Name: "US DOLLAR", VND: 25400}}, nil
+}
+
+func TestRates(t *testing.T) {
+	h := newTestServer(t)
+	if r := do(t, h, "GET", "/api/v1/rates", "", ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("without token = %d", r.status)
+	}
+	r := do(t, h, "GET", "/api/v1/rates", "", register(t, h, "ratereader"))
+	rates, _ := r.body["rates"].([]any)
+	if r.status != http.StatusOK || len(rates) != 1 || rates[0].(map[string]any)["vnd"] != float64(25400) {
+		t.Fatalf("rates = %d %v", r.status, r.body)
 	}
 }

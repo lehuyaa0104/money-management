@@ -6,6 +6,8 @@ export interface User {
   createdAt?: string
   /** Day of month (1–31) budgeting cycles start on; missing in older sessions, meaning 1. */
   cycleStartDay?: number
+  /** Display currency (ISO 4217); missing in older sessions, meaning VND. */
+  currency?: string
 }
 
 export interface RegisterInput {

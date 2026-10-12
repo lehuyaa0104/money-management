@@ -17,6 +17,7 @@ type userModel struct {
 	FullName      string `gorm:"type:varchar(50);not null"`
 	PasswordHash  string `gorm:"type:varchar(100);not null"`
 	CycleStartDay int    `gorm:"type:tinyint unsigned;not null;default:1"`
+	Currency      string `gorm:"type:char(3);not null;default:'VND'"`
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -27,13 +28,15 @@ func (userModel) TableName() string { return "users" }
 
 func toUserModel(u *domain.User) *userModel {
 	return &userModel{
-		ID: u.ID, Username: u.Username, FullName: u.FullName, PasswordHash: u.PasswordHash, CycleStartDay: u.CycleStartDay, CreatedAt: u.CreatedAt,
+		ID: u.ID, Username: u.Username, FullName: u.FullName, PasswordHash: u.PasswordHash, CycleStartDay: u.CycleStartDay,
+		Currency: u.Currency, CreatedAt: u.CreatedAt,
 	}
 }
 
 func (m *userModel) toDomain() *domain.User {
 	return &domain.User{
-		ID: m.ID, Username: m.Username, FullName: m.FullName, PasswordHash: m.PasswordHash, CycleStartDay: m.CycleStartDay, CreatedAt: m.CreatedAt,
+		ID: m.ID, Username: m.Username, FullName: m.FullName, PasswordHash: m.PasswordHash, CycleStartDay: m.CycleStartDay,
+		Currency: m.Currency, CreatedAt: m.CreatedAt,
 	}
 }
 

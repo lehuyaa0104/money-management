@@ -36,12 +36,12 @@ func (r *MemoryUsers) FindByID(_ context.Context, id string) (*domain.User, erro
 	return r.find(func(u domain.User) bool { return u.ID == id })
 }
 
-func (r *MemoryUsers) UpdateCycleStartDay(_ context.Context, id string, day int) error {
+func (r *MemoryUsers) UpdateSettings(_ context.Context, u *domain.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := range r.users {
-		if r.users[i].ID == id {
-			r.users[i].CycleStartDay = day
+		if r.users[i].ID == u.ID {
+			r.users[i].CycleStartDay, r.users[i].Currency = u.CycleStartDay, u.Currency
 			return nil
 		}
 	}

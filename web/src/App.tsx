@@ -8,6 +8,7 @@ import FundDetailPage from './features/assets/funds/pages/FundDetailPage'
 import SavingsFormPage from './features/assets/savings/pages/SavingsFormPage'
 import AnalyticsPage from './features/analytics/pages/AnalyticsPage'
 import CategoriesPage from './features/categories/pages/CategoriesPage'
+import CurrencyProvider from './features/currency/CurrencyProvider'
 import CategoriesProvider from './features/categories/CategoriesProvider'
 import NewCategoryPage from './features/categories/pages/NewCategoryPage'
 import BudgetPage from './features/budgets/pages/BudgetPage'
@@ -26,37 +27,40 @@ export default function App() {
   return (
     <Routes>
       <Route element={<RequireAuth />}>
-        {/* Loaded once after sign-in and shared by every page below. */}
-        <Route element={<CategoriesProvider />}>
-          <Route element={<TransactionsProvider />}>
-            <Route element={<TabLayout />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/transactions" element={<TransactionsPage />} />
-              <Route path="/transactions/calendar" element={<CalendarPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/budget" element={<BudgetPage />} />
-              <Route path="/budget/goals" element={<GoalsPage />} />
-              <Route element={<AssetsProvider />}>
-                <Route path="/budget/savings" element={<AssetsPage />} />
-                <Route path="/budget/savings/funds/new/:code" element={<FundDetailPage />} />
-                <Route path="/budget/savings/funds/:id" element={<FundDetailPage />} />
+        {/* Display currency (and its rate) is set before any amount is shown. */}
+        <Route element={<CurrencyProvider />}>
+          {/* Loaded once after sign-in and shared by every page below. */}
+          <Route element={<CategoriesProvider />}>
+            <Route element={<TransactionsProvider />}>
+              <Route element={<TabLayout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/transactions" element={<TransactionsPage />} />
+                <Route path="/transactions/calendar" element={<CalendarPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/budget" element={<BudgetPage />} />
+                <Route path="/budget/goals" element={<GoalsPage />} />
+                <Route element={<AssetsProvider />}>
+                  <Route path="/budget/savings" element={<AssetsPage />} />
+                  <Route path="/budget/savings/funds/new/:code" element={<FundDetailPage />} />
+                  <Route path="/budget/savings/funds/:id" element={<FundDetailPage />} />
+                </Route>
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
-              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/transactions/new" element={<AddTransactionPage />} />
+              <Route path="/transactions/:id/edit" element={<AddTransactionPage />} />
+              <Route element={<AssetsProvider />}>
+                <Route path="/budget/savings/accounts/new" element={<SavingsFormPage />} />
+                <Route path="/budget/savings/accounts/:id" element={<SavingsFormPage />} />
+              </Route>
+              <Route path="/transfer" element={<ComingSoonPage title="Chuyển tiền" standalone />} />
+              <Route path="/notifications" element={<ComingSoonPage title="Thông báo" standalone />} />
+              <Route path="/accounts" element={<ComingSoonPage title="Tài khoản" standalone />} />
+              <Route path="/categories" element={<CategoriesPage />} />
+              <Route path="/categories/new" element={<NewCategoryPage />} />
+              <Route path="/security" element={<ChangePasswordPage />} />
+              <Route path="/appearance" element={<ComingSoonPage title="Giao diện" standalone />} />
+              <Route path="/assistant" element={<ComingSoonPage title="Trợ lý tài chính AI" standalone />} />
             </Route>
-            <Route path="/transactions/new" element={<AddTransactionPage />} />
-            <Route path="/transactions/:id/edit" element={<AddTransactionPage />} />
-            <Route element={<AssetsProvider />}>
-              <Route path="/budget/savings/accounts/new" element={<SavingsFormPage />} />
-              <Route path="/budget/savings/accounts/:id" element={<SavingsFormPage />} />
-            </Route>
-            <Route path="/transfer" element={<ComingSoonPage title="Chuyển tiền" standalone />} />
-            <Route path="/notifications" element={<ComingSoonPage title="Thông báo" standalone />} />
-            <Route path="/accounts" element={<ComingSoonPage title="Tài khoản" standalone />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/categories/new" element={<NewCategoryPage />} />
-            <Route path="/security" element={<ChangePasswordPage />} />
-            <Route path="/appearance" element={<ComingSoonPage title="Giao diện" standalone />} />
-            <Route path="/assistant" element={<ComingSoonPage title="Trợ lý tài chính AI" standalone />} />
           </Route>
         </Route>
       </Route>

@@ -18,7 +18,7 @@ type AuthService interface {
 	Register(ctx context.Context, in usecase.RegisterInput) (*usecase.AuthResult, error)
 	Login(ctx context.Context, username, password string) (*usecase.AuthResult, error)
 	Me(ctx context.Context, userID string) (*domain.User, error)
-	SetCycleStartDay(ctx context.Context, userID string, day int) (*domain.User, error)
+	UpdateSettings(ctx context.Context, userID string, in usecase.SettingsInput) (*domain.User, error)
 	ChangePassword(ctx context.Context, userID, current, next string) (*usecase.AuthResult, error)
 	Refresh(ctx context.Context, refreshToken string) (*usecase.AuthResult, error)
 }
@@ -43,6 +43,7 @@ type userResponse struct {
 	Username      string    `json:"username"`
 	FullName      string    `json:"fullName"`
 	CycleStartDay int       `json:"cycleStartDay"`
+	Currency      string    `json:"currency"`
 	CreatedAt     time.Time `json:"createdAt"`
 }
 
@@ -54,7 +55,7 @@ type authResponse struct {
 }
 
 func toUserResponse(u *domain.User) userResponse {
-	return userResponse{ID: u.ID, Username: u.Username, FullName: u.FullName, CycleStartDay: u.CycleStartDay, CreatedAt: u.CreatedAt}
+	return userResponse{ID: u.ID, Username: u.Username, FullName: u.FullName, CycleStartDay: u.CycleStartDay, Currency: u.Currency, CreatedAt: u.CreatedAt}
 }
 
 func toAuthResponse(r *usecase.AuthResult) authResponse {
@@ -103,18 +104,20 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": toUserResponse(user)})
 }
 
+// Fields left out keep their value.
 type updateMeRequest struct {
-	CycleStartDay int `json:"cycleStartDay"`
+	CycleStartDay *int    `json:"cycleStartDay"`
+	Currency      *string `json:"currency"`
 }
 
-// UpdateMe godoc: PATCH /api/v1/auth/me {cycleStartDay} (Bearer token) → 200 {user}
+// UpdateMe godoc: PATCH /api/v1/auth/me {cycleStartDay?, currency?} (Bearer token) → 200 {user}; fields left out keep their value
 func (h *AuthHandler) UpdateMe(c *gin.Context) {
 	var req updateMeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeBadRequest(c)
 		return
 	}
-	user, err := h.auth.SetCycleStartDay(c.Request.Context(), middleware.UserID(c), req.CycleStartDay)
+	user, err := h.auth.UpdateSettings(c.Request.Context(), middleware.UserID(c), usecase.SettingsInput{CycleStartDay: req.CycleStartDay, Currency: req.Currency})
 	if err != nil {
 		WriteError(c, err)
 		return

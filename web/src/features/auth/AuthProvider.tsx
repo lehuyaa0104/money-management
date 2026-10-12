@@ -31,7 +31,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       await authService.logout()
       setUser(null)
     },
-    setCycleStartDay: async (day) => setUser(await authService.updateCycleStartDay(day)),
+    setCycleStartDay: async (day) => setUser(await authService.updateSettings({ cycleStartDay: day })),
+    setCurrency: async (code) => setUser(await authService.updateSettings({ currency: code })),
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

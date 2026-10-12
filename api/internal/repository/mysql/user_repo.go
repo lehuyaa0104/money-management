@@ -29,8 +29,9 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*domain.User,
 	return r.findOne(ctx, "id = ?", id)
 }
 
-func (r *UserRepository) UpdateCycleStartDay(ctx context.Context, id string, day int) error {
-	return r.db.WithContext(ctx).Model(&userModel{}).Where("id = ?", id).Update("cycle_start_day", day).Error
+func (r *UserRepository) UpdateSettings(ctx context.Context, u *domain.User) error {
+	return r.db.WithContext(ctx).Model(&userModel{}).Where("id = ?", u.ID).
+		Updates(map[string]any{"cycle_start_day": u.CycleStartDay, "currency": u.Currency}).Error
 }
 
 func (r *UserRepository) UpdatePasswordHash(ctx context.Context, id, hash string) error {

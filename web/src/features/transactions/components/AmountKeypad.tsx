@@ -1,5 +1,6 @@
 import { Delete } from 'lucide-react'
-import { KEYPAD_KEYS, type KeypadKey } from '@/features/transactions/amountInput'
+import { keypadKeys, type KeypadKey } from '@/features/transactions/amountInput'
+import { inputDecimals } from '@/shared/utils/currency'
 
 interface AmountKeypadProps {
   onKey: (key: KeypadKey) => void
@@ -8,7 +9,7 @@ interface AmountKeypadProps {
 export default function AmountKeypad({ onKey }: AmountKeypadProps) {
   return (
     <div className="grid grid-cols-3 gap-3">
-      {KEYPAD_KEYS.map((key) => (
+      {keypadKeys(inputDecimals()).map((key) => (
         <button
           key={key}
           type="button"

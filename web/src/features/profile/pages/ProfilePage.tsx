@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Bell, CalendarClock, ChevronRight, CreditCard, Download, LogOut, MessageSquare, Moon, Shield, Tag } from 'lucide-react'
+import { Bell, CalendarClock, ChevronRight, Coins, CreditCard, Download, LogOut, MessageSquare, Moon, Shield, Tag } from 'lucide-react'
 import type { User } from '@/features/auth/types'
 import { useAuth, useCycleStartDay } from '@/features/auth/useAuth'
 import { downloadTransactionsCsv } from '@/features/transactions/exportCsv'
@@ -9,16 +9,19 @@ import { useTransactions } from '@/features/transactions/useTransactions'
 import PageHeader from '@/shared/layout/PageHeader'
 import Text from '@/shared/ui/Text'
 import { todayISO } from '@/shared/utils/format'
+import CurrencySheet from '@/features/currency/components/CurrencySheet'
 import CycleSheet from '../components/CycleSheet'
 import ProfileCard from '../components/ProfileCard'
 import SettingsMenu, { type SettingsItem } from '../components/SettingsMenu'
 
 export default function ProfilePage() {
-  const { user, logout, setCycleStartDay } = useAuth()
+  const { user, logout, setCycleStartDay, setCurrency } = useAuth()
+  const currency = user?.currency ?? 'VND'
   const startDay = useCycleStartDay()
   const { transactions } = useTransactions()
   const today = todayISO()
   const [editingCycle, setEditingCycle] = useState(false)
+  const [editingCurrency, setEditingCurrency] = useState(false)
 
   const settings: SettingsItem[] = [
     { label: 'Tài khoản', description: 'Liên kết ví, ngân hàng · Sắp ra mắt', icon: CreditCard, tone: 'bg-blue-50 text-blue-500', to: '/accounts' },
@@ -35,6 +38,13 @@ export default function ProfilePage() {
       icon: CalendarClock,
       tone: 'bg-teal-50 text-teal-600',
       onSelect: () => setEditingCycle(true),
+    },
+    {
+      label: 'Tiền tệ',
+      description: currency === 'VND' ? 'Việt Nam đồng (VND)' : `Hiển thị bằng ${currency} theo tỷ giá hôm nay`,
+      icon: Coins,
+      tone: 'bg-amber-50 text-amber-600',
+      onSelect: () => setEditingCurrency(true),
     },
     {
       label: 'Xuất dữ liệu',
@@ -97,6 +107,17 @@ export default function ProfilePage() {
 
       {editingCycle && (
         <CycleSheet startDay={startDay} onSave={setCycleStartDay} onClose={() => setEditingCycle(false)} />
+      )}
+      {editingCurrency && (
+        <CurrencySheet
+          current={currency}
+          onClose={() => setEditingCurrency(false)}
+          onSave={async (code) => {
+            await setCurrency(code)
+            // Amounts are formatted with a currency set once at startup: reload to apply the new one everywhere.
+            window.location.reload()
+          }}
+        />
       )}
     </>
   )

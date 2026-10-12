@@ -82,6 +82,7 @@ func (u *AuthUsecase) Register(ctx context.Context, in RegisterInput) (*AuthResu
 		FullName:      fullName,
 		PasswordHash:  hash,
 		CycleStartDay: 1,
+		Currency:      domain.DefaultCurrency,
 		CreatedAt:     u.now(),
 	}
 	// The repository also maps a duplicate-key race to ErrUsernameTaken.
@@ -120,19 +121,34 @@ func (u *AuthUsecase) Me(ctx context.Context, userID string) (*domain.User, erro
 	return user, err
 }
 
-// SetCycleStartDay changes the day of month the user's budgeting cycle starts on.
-func (u *AuthUsecase) SetCycleStartDay(ctx context.Context, userID string, day int) (*domain.User, error) {
-	if err := domain.ValidateCycleStartDay(day); err != nil {
-		return nil, err
-	}
+// SettingsInput changes only the fields that are set.
+type SettingsInput struct {
+	CycleStartDay *int    // day of month budgeting cycles start on
+	Currency      *string // display currency, ISO 4217
+}
+
+// UpdateSettings changes the user's preferences.
+func (u *AuthUsecase) UpdateSettings(ctx context.Context, userID string, in SettingsInput) (*domain.User, error) {
 	user, err := u.Me(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	if err := u.users.UpdateCycleStartDay(ctx, user.ID, day); err != nil {
+	if in.CycleStartDay != nil {
+		if err := domain.ValidateCycleStartDay(*in.CycleStartDay); err != nil {
+			return nil, err
+		}
+		user.CycleStartDay = *in.CycleStartDay
+	}
+	if in.Currency != nil {
+		code := strings.ToUpper(strings.TrimSpace(*in.Currency))
+		if err := domain.ValidateCurrency(code); err != nil {
+			return nil, err
+		}
+		user.Currency = code
+	}
+	if err := u.users.UpdateSettings(ctx, user); err != nil {
 		return nil, err
 	}
-	user.CycleStartDay = day
 	return user, nil
 }
 
