@@ -16,7 +16,7 @@ export default function DebtSummaryCard({ status: s }: { status: DebtStatus }) {
         {formatCurrency(s.remaining)}
       </Text>
       <p className="mt-2 text-sm text-white/70">
-        Đã trả {formatCurrency(s.paid)} · {percent.format(s.progress)}
+        Đã trả {formatCurrency(s.paid)} / tổng vay {formatCurrency(s.borrowed)} · {percent.format(s.progress)}
       </p>
       <div
         role="progressbar"

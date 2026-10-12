@@ -5,7 +5,9 @@ import type { Asset, AssetInput } from './useAssets'
 /** An asset as the API returns it; `details` has the same shape the web uses. */
 type ApiAsset = Asset & { createdAt: string; updatedAt: string }
 
-const toAsset = ({ id, kind, name, details }: ApiAsset) => ({ id, kind, name, details }) as Asset
+const toAsset = ({ id, kind, name, details }: ApiAsset) =>
+  // Debts saved before categoryId and borrowings existed don't have them.
+  (kind === 'debt' ? { id, kind, name, details: { categoryId: '', borrowings: [], ...(details as object) } } : { id, kind, name, details }) as Asset
 
 const path = (id: string) => `/assets/${encodeURIComponent(id)}`
 

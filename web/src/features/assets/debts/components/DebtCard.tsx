@@ -29,7 +29,9 @@ export default function DebtCard({ asset: a, onSelect }: { asset: DebtAsset; onS
             {label}
           </Text>
         </span>
-        {s.remaining === 0 && <span className="shrink-0 rounded-full bg-primary-soft px-3 py-1 text-sm font-bold text-primary">Đã trả hết</span>}
+        {s.remaining === 0 && s.borrowed > 0 && (
+          <span className="shrink-0 rounded-full bg-primary-soft px-3 py-1 text-sm font-bold text-primary">Đã trả hết</span>
+        )}
       </span>
 
       <span className="mt-4 flex items-end justify-between gap-3">

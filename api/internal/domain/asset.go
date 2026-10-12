@@ -30,7 +30,7 @@ const (
 var (
 	ErrAssetDetailsInvalid = Validation("details_invalid", "Thông tin tài sản không hợp lệ")
 	ErrFundOversold        = Validation("fund_oversold", "Có giao dịch bán nhiều hơn số chứng chỉ quỹ đang có")
-	ErrDebtOverpaid        = Validation("debt_overpaid", "Tổng số tiền đã trả vượt quá số tiền vay")
+	ErrDebtOverpaid        = Validation("debt_overpaid", "Tổng số tiền đã trả vượt quá tổng số tiền đã vay")
 )
 
 // Asset is a savings deposit or a fund holding. Fields every kind has are columns;
@@ -92,15 +92,28 @@ type FundTransaction struct {
 
 var debtTypes = map[string]bool{"bank": true, "credit_card": true, "personal": true, "other": true}
 
-// DebtDetails describes money owed and every repayment of principal; what's left is derived.
+// DebtDetails describes money owed: the first loan, every later draw on it (e.g. each
+// credit card purchase) and every repayment of principal; what's left is derived.
+// Debts saved before categoryId and borrowings existed read as "" and none.
 type DebtDetails struct {
-	Type      string        `json:"type"`      // bank | credit_card | personal | other
-	Lender    string        `json:"lender"`    // bank or person lent by
-	Amount    int64         `json:"amount"`    // principal borrowed, VND
-	Rate      float64       `json:"rate"`      // percent per year, for reference; 0 = none
-	StartDate string        `json:"startDate"` // YYYY-MM-DD
-	DueDate   string        `json:"dueDate"`   // YYYY-MM-DD, or "" with no deadline
-	Payments  []DebtPayment `json:"payments"`
+	Type       string          `json:"type"`       // bank | credit_card | personal | other
+	Lender     string          `json:"lender"`     // bank or person lent by
+	Amount     int64           `json:"amount"`     // first loan, VND; 0 for e.g. a card used later
+	CategoryID string          `json:"categoryId"` // what the first loan was for: an expense category id, or ""
+	Rate       float64         `json:"rate"`       // percent per year, for reference; 0 = none
+	StartDate  string          `json:"startDate"`  // YYYY-MM-DD
+	DueDate    string          `json:"dueDate"`    // YYYY-MM-DD, or "" with no deadline
+	Borrowings []DebtBorrowing `json:"borrowings"`
+	Payments   []DebtPayment   `json:"payments"`
+}
+
+// DebtBorrowing is more borrowed on the same debt.
+type DebtBorrowing struct {
+	ID         string `json:"id"` // made by the client, unique within the debt
+	Date       string `json:"date"`
+	Amount     int64  `json:"amount"`
+	CategoryID string `json:"categoryId"` // what it was for, or ""
+	Note       string `json:"note"`
 }
 
 // DebtPayment is principal repaid on a date (interest paid isn't tracked).
@@ -275,12 +288,16 @@ func (d *DebtDetails) normalize(latest string) error {
 		return Validation("lender_required", "Vui lòng nhập bên cho vay")
 	case utf8.RuneCountInString(d.Lender) > AssetBankMax:
 		return Validation("lender_too_long", "Tên bên cho vay tối đa 40 ký tự")
-	case d.Amount <= 0 || d.Amount > MaxAmount:
+	case d.Amount < 0 || d.Amount > MaxAmount:
 		return Validation("amount_invalid", "Số tiền vay không hợp lệ")
+	case len(d.CategoryID) > assetFundTxIDMax:
+		return Validation("category_invalid", "Danh mục không hợp lệ")
 	case d.Rate < 0 || d.Rate > 100:
 		return Validation("rate_invalid", "Lãi suất phải từ 0 đến 100%")
 	case len(d.Payments) > AssetFundTxMax:
 		return Validation("payments_too_many", "Quá nhiều lần trả nợ")
+	case len(d.Borrowings) > AssetFundTxMax:
+		return Validation("borrowings_too_many", "Quá nhiều lần vay thêm")
 	}
 	if err := validateDate(d.StartDate, latest); err != nil {
 		return err
@@ -297,6 +314,30 @@ func (d *DebtDetails) normalize(latest string) error {
 	if d.Payments == nil {
 		d.Payments = []DebtPayment{} // stored and returned as [], never null
 	}
+	if d.Borrowings == nil {
+		d.Borrowings = []DebtBorrowing{}
+	}
+	borrowed := d.Amount
+	drawIDs := make(map[string]bool, len(d.Borrowings))
+	for i := range d.Borrowings {
+		b := &d.Borrowings[i]
+		b.Note = strings.TrimSpace(b.Note)
+		switch {
+		case b.ID == "" || len(b.ID) > assetFundTxIDMax || drawIDs[b.ID]:
+			return Validation("borrowing_id_invalid", "Mã lần vay không hợp lệ hoặc bị trùng")
+		case b.Amount <= 0 || b.Amount > MaxAmount:
+			return Validation("amount_invalid", "Số tiền vay thêm không hợp lệ")
+		case len(b.CategoryID) > assetFundTxIDMax:
+			return Validation("category_invalid", "Danh mục không hợp lệ")
+		case utf8.RuneCountInString(b.Note) > NoteMax:
+			return Validation("note_too_long", "Ghi chú tối đa 100 ký tự")
+		}
+		if err := validateDate(b.Date, latest); err != nil {
+			return err
+		}
+		drawIDs[b.ID] = true
+		borrowed += b.Amount
+	}
 	ids := make(map[string]bool, len(d.Payments))
 	var paid int64
 	for _, p := range d.Payments {
@@ -312,7 +353,7 @@ func (d *DebtDetails) normalize(latest string) error {
 		ids[p.ID] = true
 		paid += p.Amount
 	}
-	if paid > d.Amount {
+	if paid > borrowed {
 		return ErrDebtOverpaid
 	}
 	return nil

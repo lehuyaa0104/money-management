@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
-import { Pencil, Plus } from 'lucide-react'
+import { Minus, Pencil, Plus } from 'lucide-react'
 import DebtSummaryCard from '@/features/assets/debts/components/DebtSummaryCard'
-import DebtPaymentRow from '@/features/assets/debts/components/DebtPaymentRow'
-import DebtPaymentSheet from '@/features/assets/debts/components/DebtPaymentSheet'
+import DebtEntryRow from '@/features/assets/debts/components/DebtEntryRow'
+import DebtEntrySheet from '@/features/assets/debts/components/DebtEntrySheet'
 import { debtType } from '@/features/assets/debts/debtOptions'
-import { debtStatus, newestFirst } from '@/features/assets/debts/debtStats'
-import type { DebtDetails, DebtPayment } from '@/features/assets/debts/types'
+import { debtHistory, debtStatus, type DebtEntry } from '@/features/assets/debts/debtStats'
+import type { DebtDetails } from '@/features/assets/debts/types'
+import { useCategories } from '@/features/categories/useCategories'
 import { useAssets } from '@/features/assets/useAssets'
 import PageHeader from '@/shared/layout/PageHeader'
 import Button from '@/shared/ui/Button'
@@ -18,11 +19,12 @@ import { formatCompactCurrency, formatCurrency, formatDate, todayISO } from '@/s
 const LIST = '/budget/savings'
 const rateFormat = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 })
 
-type Sheet = { kind: 'payment'; payment?: DebtPayment } | { kind: 'delete' } | null
+type Sheet = { kind: 'entry'; entryKind: DebtEntry['kind']; entry?: DebtEntry } | { kind: 'delete' } | null
 
 /** One debt: what's left, the terms, and the repayment history. */
 export default function DebtDetailPage() {
   const { assets, update, remove } = useAssets()
+  const { categories } = useCategories()
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -34,17 +36,20 @@ export default function DebtDetailPage() {
 
   const d = debt.details
   const s = debtStatus(d, todayISO())
+  const history = debtHistory(d)
   const saveDetails = async (details: DebtDetails) => {
     await update(debt.id, { kind: 'debt', name: debt.name, details })
     setSheet(null)
   }
 
+  const purpose = categories.find((c) => c.id === d.categoryId)?.name
   const terms: [string, string][] = [
     ['Bên cho vay', d.lender],
     ['Loại', debtType(d.type).label],
-    ['Số tiền vay', formatCurrency(d.amount)],
-    ['Ngày vay', formatDate(d.startDate)],
+    ['Vay ban đầu', formatCurrency(d.amount)],
   ]
+  if (purpose) terms.push(['Mục đích', purpose])
+  terms.push(['Ngày vay', formatDate(d.startDate)])
   if (d.dueDate) terms.push(['Hạn trả', formatDate(d.dueDate)])
   if (d.rate > 0) terms.push(['Lãi suất', `${rateFormat.format(d.rate)}%/năm · ≈ ${formatCompactCurrency(s.monthlyInterest)}/tháng`])
 
@@ -70,9 +75,14 @@ export default function DebtDetailPage() {
       <main className="flex flex-col gap-5 px-5 pt-2 pb-4">
         <DebtSummaryCard status={s} />
 
-        <Button className="h-12" disabled={s.remaining === 0} onClick={() => setSheet({ kind: 'payment' })}>
-          <Plus className="size-5" /> {s.remaining === 0 ? 'Đã trả hết' : 'Trả nợ'}
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant="outline" className="h-12 text-red-600" onClick={() => setSheet({ kind: 'entry', entryKind: 'borrow' })}>
+            <Plus className="size-5" /> Vay thêm
+          </Button>
+          <Button className="h-12" disabled={s.remaining === 0} onClick={() => setSheet({ kind: 'entry', entryKind: 'repay' })}>
+            <Minus className="size-5" /> Trả nợ
+          </Button>
+        </div>
 
         <Card className="p-0">
           <dl className="divide-y divide-gray-100 px-4">
@@ -95,16 +105,16 @@ export default function DebtDetailPage() {
 
         <section className="flex flex-col gap-3">
           <Text as="h2" variant="label" tone="muted" className="px-1 tracking-wide uppercase">
-            Lịch sử trả nợ
+            Lịch sử vay và trả
           </Text>
-          {d.payments.length === 0 ? (
+          {history.length === 0 ? (
             <Text tone="muted" className="py-4 text-center">
-              Chưa có lần trả nào.
+              Chưa có lần vay thêm hay trả nợ nào.
             </Text>
           ) : (
             <Card className="divide-y divide-gray-100 p-0">
-              {newestFirst(d.payments).map((p) => (
-                <DebtPaymentRow key={p.id} payment={p} onSelect={() => setSheet({ kind: 'payment', payment: p })} />
+              {history.map((e) => (
+                <DebtEntryRow key={`${e.kind}-${e.id}`} entry={e} onSelect={() => setSheet({ kind: 'entry', entryKind: e.kind, entry: e })} />
               ))}
             </Card>
           )}
@@ -115,14 +125,8 @@ export default function DebtDetailPage() {
         </button>
       </main>
 
-      {sheet?.kind === 'payment' && (
-        <DebtPaymentSheet
-          details={d}
-          payment={sheet.payment}
-          onClose={() => setSheet(null)}
-          onSave={(p) => saveDetails({ ...d, payments: [...d.payments.filter((x) => x.id !== p.id), p] })}
-          onRemove={sheet.payment && (() => saveDetails({ ...d, payments: d.payments.filter((x) => x.id !== sheet.payment?.id) }))}
-        />
+      {sheet?.kind === 'entry' && (
+        <DebtEntrySheet details={d} kind={sheet.entryKind} entry={sheet.entry} onClose={() => setSheet(null)} onSave={saveDetails} />
       )}
       {sheet?.kind === 'delete' && (
         <ConfirmDialog
