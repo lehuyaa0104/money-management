@@ -6,12 +6,13 @@ import AssetKindPicker from '@/features/assets/components/AssetKindPicker'
 import AssetsEmptyState from '@/features/assets/components/AssetsEmptyState'
 import AssetsSummaryCard from '@/features/assets/components/AssetsSummaryCard'
 import AssetTabs, { type AssetTab } from '@/features/assets/components/AssetTabs'
+import DebtCard from '@/features/assets/debts/components/DebtCard'
 import FundCard from '@/features/assets/funds/components/FundCard'
 import FundPickerSheet from '@/features/assets/funds/components/FundPickerSheet'
 import { fundPosition } from '@/features/assets/funds/fundStats'
 import SavingsCard from '@/features/assets/savings/components/SavingsCard'
 import SectionTitle from '@/features/assets/components/SectionTitle'
-import { isFund, isSavings, summarize } from '@/features/assets/assetStats'
+import { isDebt, isFund, isSavings, summarize } from '@/features/assets/assetStats'
 import { savingsMonthlyInterest } from '@/features/assets/savings/savingsStats'
 import { useAssets } from '@/features/assets/useAssets'
 import PageHeader from '@/shared/layout/PageHeader'
@@ -23,6 +24,7 @@ type Sheet = { kind: 'pick' } | { kind: 'pickFund' } | null
 
 const SAVINGS_FORM = '/budget/savings/accounts'
 const FUNDS = '/budget/savings/funds'
+const DEBTS = '/budget/savings/debts'
 
 export default function AssetsPage() {
   const { assets, navs } = useAssets()
@@ -35,6 +37,7 @@ export default function AssetsPage() {
   const shown = assets.filter((a) => tab === 'all' || a.kind === tab)
   const funds = shown.filter(isFund)
   const savings = shown.filter(isSavings)
+  const debts = shown.filter(isDebt)
 
   return (
     <>
@@ -86,6 +89,15 @@ export default function AssetsPage() {
               </section>
             )}
 
+            {debts.length > 0 && (
+              <section className="flex flex-col gap-3">
+                <SectionTitle title="Khoản nợ" extra={`−${formatCompactCurrency(summary.debts)}`} />
+                {debts.map((a) => (
+                  <DebtCard key={a.id} asset={a} onSelect={() => navigate(`${DEBTS}/${a.id}`)} />
+                ))}
+              </section>
+            )}
+
             {shown.length === 0 && (
               <Text tone="muted" className="py-6 text-center">
                 Chưa có tài sản loại này.
@@ -100,6 +112,7 @@ export default function AssetsPage() {
           onClose={() => setSheet(null)}
           onPick={(kind) => {
             if (kind === 'savings') navigate(`${SAVINGS_FORM}/new`)
+            else if (kind === 'debt') navigate(`${DEBTS}/new`)
             else setSheet({ kind: 'pickFund' })
           }}
         />

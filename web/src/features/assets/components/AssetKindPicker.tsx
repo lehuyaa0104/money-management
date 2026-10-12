@@ -8,6 +8,7 @@ import { cn } from '@/shared/utils/cn'
 const CHOICES: { kind: AssetKind; title: string; hint: string }[] = [
   { kind: 'savings', title: 'Tiết kiệm ngân hàng', hint: 'Sổ tiết kiệm có hoặc không kỳ hạn' },
   { kind: 'fund', title: 'Chứng chỉ quỹ mở', hint: 'Quỹ mở như DCDS, DCBF của Dragon Capital' },
+  { kind: 'debt', title: 'Khoản nợ', hint: 'Vay ngân hàng, thẻ tín dụng, vay người quen' },
 ]
 
 /** First step of adding an asset: each kind has its own form. */

@@ -27,6 +27,36 @@ const fundJSON = `{"code":" dcds ","manager":"Dragon Capital","nav":98500,"navDa
 	{"id":"t1","type":"buy","date":"2026-03-05","units":100,"amount":9000000,"nav":90000},
 	{"id":"t2","type":"sell","date":"2026-08-10","units":60,"amount":7200000,"nav":121000}]}`
 
+const debtJSON = `{"type":"bank","lender":" TPBank ","amount":200000000,"rate":9.5,"startDate":"2026-01-10","dueDate":"2029-01-10","payments":[
+	{"id":"p1","date":"2026-02-10","amount":5000000},{"id":"p2","date":"2026-03-10","amount":5000000}]}`
+
+func TestDebts(t *testing.T) {
+	ctx := context.Background()
+	uc, _ := newAssets()
+	debt, err := uc.Create(ctx, "u1", usecase.AssetInput{Kind: "debt", Name: "Vay mua xe", Details: []byte(debtJSON)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d domain.DebtDetails
+	if err := json.Unmarshal(debt.Details, &d); err != nil || d.Lender != "TPBank" || len(d.Payments) != 2 || d.Payments[1].Amount != 5000000 {
+		t.Fatalf("debt not normalized: %s %v", debt.Details, err)
+	}
+	// No payments yet, no deadline: stored with [] and "".
+	none, err := uc.Create(ctx, "u1", usecase.AssetInput{Kind: "debt", Details: []byte(`{"type":"personal","lender":"Anh Nam","amount":3000000,"rate":0,"startDate":"2026-10-01","dueDate":""}`)})
+	if err != nil || !strings.Contains(string(none.Details), `"payments":[]`) {
+		t.Fatalf("debt without payments: %s %v", none.Details, err)
+	}
+	// Paying it off exactly is fine; a cent more is not.
+	paidOff := strings.Replace(debtJSON, `"amount":200000000`, `"amount":10000000`, 1)
+	if _, err := uc.Create(ctx, "u1", usecase.AssetInput{Kind: "debt", Details: []byte(paidOff)}); err != nil {
+		t.Fatalf("paid off = %v", err)
+	}
+	over := strings.Replace(debtJSON, `"amount":200000000`, `"amount":9999999`, 1)
+	if _, err := uc.Create(ctx, "u1", usecase.AssetInput{Kind: "debt", Details: []byte(over)}); errCode(err) != "debt_overpaid" {
+		t.Fatalf("overpaid = %v", err)
+	}
+}
+
 func TestAssets(t *testing.T) {
 	ctx := context.Background()
 	uc, repo := newAssets()
@@ -111,6 +141,15 @@ func TestAssetValidation(t *testing.T) {
 		{"savings", set(savingsJSON, "openedAt", `"2026-10-20"`), "date_in_future"},
 		{"savings", set(savingsJSON, "interestPayout", `"weekly"`), "interest_payout_invalid"},
 		{"savings", set(savingsJSON, "onMaturity", `""`), "on_maturity_invalid"},
+		{"debt", set(debtJSON, "type", `"loan"`), "debt_type_invalid"},
+		{"debt", set(debtJSON, "lender", `" "`), "lender_required"},
+		{"debt", set(debtJSON, "amount", `0`), "amount_invalid"},
+		{"debt", set(debtJSON, "rate", `-1`), "rate_invalid"},
+		{"debt", set(debtJSON, "startDate", `"2026-10-20"`), "date_in_future"},
+		{"debt", set(debtJSON, "dueDate", `"2025-12-31"`), "due_date_invalid"},
+		{"debt", set(debtJSON, "payments", `[{"id":"p","date":"2026-02-10","amount":1},{"id":"p","date":"2026-03-10","amount":1}]`), "payment_id_invalid"},
+		{"debt", set(debtJSON, "payments", `[{"id":"p","date":"2026-02-10","amount":0}]`), "amount_invalid"},
+		{"debt", set(debtJSON, "extra", `1`), "details_invalid"},
 		{"fund", set(fundJSON, "code", `""`), "code_required"},
 		{"fund", set(fundJSON, "nav", `-1`), "nav_invalid"},
 		{"fund", set(fundJSON, "navDate", `"2026-13-01"`), "date_invalid"},
