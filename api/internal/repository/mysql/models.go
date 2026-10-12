@@ -126,21 +126,23 @@ type budgetModel struct {
 	CategoryID string        `gorm:"type:char(36);not null;uniqueIndex:idx_budgets_user_category,priority:2"`
 	Category   categoryModel `gorm:"foreignKey:CategoryID;constraint:OnDelete:CASCADE"`
 	Limit      int64         `gorm:"column:limit_amount;not null"` // LIMIT is a reserved word
-	CreatedAt  time.Time     `gorm:"type:datetime(3);not null"`
-	UpdatedAt  time.Time     `gorm:"type:datetime(3);not null"`
+	// Budgets made before priorities existed get 'important'.
+	Priority  string    `gorm:"type:varchar(10);not null;default:'important'"`
+	CreatedAt time.Time `gorm:"type:datetime(3);not null"`
+	UpdatedAt time.Time `gorm:"type:datetime(3);not null"`
 }
 
 func (budgetModel) TableName() string { return "budgets" }
 
 func toBudgetModel(b *domain.Budget) *budgetModel {
 	return &budgetModel{
-		ID: b.ID, UserID: b.UserID, CategoryID: b.CategoryID, Limit: b.Limit, CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
+		ID: b.ID, UserID: b.UserID, CategoryID: b.CategoryID, Limit: b.Limit, Priority: b.Priority, CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
 	}
 }
 
 func (m *budgetModel) toDomain() domain.Budget {
 	return domain.Budget{
-		ID: m.ID, UserID: m.UserID, CategoryID: m.CategoryID, Limit: m.Limit, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+		ID: m.ID, UserID: m.UserID, CategoryID: m.CategoryID, Limit: m.Limit, Priority: m.Priority, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
 

@@ -402,7 +402,17 @@ func TestBudgetsFlow(t *testing.T) {
 		t.Fatalf("other user sees %v", r.body["budgets"])
 	}
 
-	if r := do(t, h, "PUT", "/api/v1/budgets/"+id, `{"limit":80000}`, token); r.status != http.StatusOK || r.body["budget"].(map[string]any)["limit"] != float64(80000) {
+	if created.body["budget"].(map[string]any)["priority"] != "important" {
+		t.Fatalf("default priority: %v", created.body)
+	}
+	if r := do(t, h, "PUT", "/api/v1/budgets/"+id, `{"limit":70000,"priority":"optional"}`, token); r.status != http.StatusOK || r.body["budget"].(map[string]any)["priority"] != "optional" {
+		t.Fatalf("set priority = %d %v", r.status, r.body)
+	}
+	if r := do(t, h, "PUT", "/api/v1/budgets/"+id, `{"limit":70000,"priority":"later"}`, token); r.status != http.StatusBadRequest || errorCode(r) != "priority_invalid" {
+		t.Fatalf("bad priority = %d %v", r.status, r.body)
+	}
+	if r := do(t, h, "PUT", "/api/v1/budgets/"+id, `{"limit":80000}`, token); r.status != http.StatusOK || r.body["budget"].(map[string]any)["limit"] != float64(80000) ||
+		r.body["budget"].(map[string]any)["priority"] != "optional" {
 		t.Fatalf("update = %d %v", r.status, r.body)
 	}
 	if r := do(t, h, "PUT", "/api/v1/budgets/"+id, `{"limit":80000}`, other); r.status != http.StatusNotFound {

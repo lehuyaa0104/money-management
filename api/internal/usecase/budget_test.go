@@ -63,6 +63,7 @@ func TestCreateBudgetRules(t *testing.T) {
 		"zero limit":        {"u1", usecase.CreateBudgetInput{CategoryID: coffee}, nil, "limit_invalid"},
 		"negative limit":    {"u1", usecase.CreateBudgetInput{CategoryID: coffee, Limit: -1}, nil, "limit_invalid"},
 		"limit over 999 tỷ": {"u1", usecase.CreateBudgetInput{CategoryID: coffee, Limit: domain.MaxAmount + 1}, nil, "limit_too_large"},
+		"unknown priority":  {"u1", usecase.CreateBudgetInput{CategoryID: coffee, Limit: 1000, Priority: "urgent"}, nil, "priority_invalid"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -133,14 +134,27 @@ func TestBudgetSpentIsPerMonth(t *testing.T) {
 		}
 	}
 
-	updated, err := budgets.UpdateLimit(ctx, "u1", b.ID, 200000)
-	if err != nil || updated.Limit != 200000 {
+	if b.Priority != domain.BudgetImportant {
+		t.Fatalf("a budget made without a priority must be 'important', got %q", b.Priority)
+	}
+	updated, err := budgets.Update(ctx, "u1", b.ID, usecase.UpdateBudgetInput{Limit: 200000, Priority: domain.BudgetEssential})
+	if err != nil || updated.Limit != 200000 || updated.Priority != domain.BudgetEssential {
 		t.Fatalf("update: %v %v", updated, err)
 	}
-	if _, err := budgets.UpdateLimit(ctx, "u1", b.ID, 0); errCode(err) != "limit_invalid" {
+	// Older clients send only the limit: the priority stays.
+	if kept, err := budgets.Update(ctx, "u1", b.ID, usecase.UpdateBudgetInput{Limit: 150000}); err != nil || kept.Priority != domain.BudgetEssential {
+		t.Fatalf("update without priority: %v %v", kept, err)
+	}
+	if list, _ := budgets.List(ctx, "u1", "2026-10", 1); list[0].Priority != domain.BudgetEssential {
+		t.Fatalf("listed priority = %q", list[0].Priority)
+	}
+	if _, err := budgets.Update(ctx, "u1", b.ID, usecase.UpdateBudgetInput{Limit: 1000, Priority: "urgent"}); errCode(err) != "priority_invalid" {
+		t.Fatalf("bad priority = %v", err)
+	}
+	if _, err := budgets.Update(ctx, "u1", b.ID, usecase.UpdateBudgetInput{Limit: 0}); errCode(err) != "limit_invalid" {
 		t.Fatalf("update to 0 = %v", err)
 	}
-	if _, err := budgets.UpdateLimit(ctx, "u2", b.ID, 1000); !errors.Is(err, domain.ErrNotFound) {
+	if _, err := budgets.Update(ctx, "u2", b.ID, usecase.UpdateBudgetInput{Limit: 1000}); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("other user's update = %v", err)
 	}
 	if err := budgets.Delete(ctx, "u2", b.ID); !errors.Is(err, domain.ErrNotFound) {

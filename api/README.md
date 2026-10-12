@@ -41,8 +41,8 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 | `PUT` | `/api/v1/transactions/:id` | Cùng body như khi tạo → `200 {transaction}`; thay toàn bộ, bỏ `occurredAt` thì giữ giá trị cũ (`404` nếu không tồn tại hoặc của người khác) |
 | `DELETE` | `/api/v1/transactions/:id` | Xoá giao dịch của user → `204` (`404` nếu không tồn tại hoặc của người khác) |
 | `GET` | `/api/v1/budgets?month=YYYY-MM&startDay=` | Ngân sách của user kèm `spent` (đã chi trong chu kỳ đó) và `remaining` (= `limit − spent`, có thể âm) → `{month, budgets}`. `startDay` không bắt buộc, mặc định 1 |
-| `POST` | `/api/v1/budgets` | `{categoryId, limit}` → `201 {budget}` (hạn mức mỗi tháng cho một danh mục chi tiêu) |
-| `PUT` | `/api/v1/budgets/:id` | `{limit}` → `200 {budget}` |
+| `POST` | `/api/v1/budgets` | `{categoryId, limit, priority?}` → `201 {budget}` (hạn mức mỗi tháng cho một danh mục chi tiêu) |
+| `PUT` | `/api/v1/budgets/:id` | `{limit, priority?}` → `200 {budget}`; bỏ `priority` thì giữ nguyên |
 | `DELETE` | `/api/v1/budgets/:id` | Xoá ngân sách → `204` (`404` nếu không tồn tại hoặc của người khác) |
 | `GET` | `/api/v1/goals` | Mục tiêu tiết kiệm của user, mới nhất trước → `{goals}` |
 | `POST` | `/api/v1/goals` | `{name, target, saved?, deadline?, color, image?}` → `201 {goal}` |
@@ -67,7 +67,7 @@ Giao dịch: `amount` là số nguyên VND, 1 → 999 tỷ; `categoryId` phải 
 
 Chu kỳ tháng: `user.cycleStartDay` (mặc định 1 = tháng dương lịch) là ngày mỗi chu kỳ bắt đầu, ví dụ ngày nhận lương. Chu kỳ `month=2026-09` với `startDay=25` là 25/09 → 24/10. Tháng ngắn hơn thì bắt đầu vào ngày cuối tháng (31 → 30/04, 28/02). Server chỉ lưu giá trị này; web tự truyền `startDay` khi gọi `budgets`.
 
-Ngân sách: hạn mức (`limit`, số nguyên VND, 1 → 999 tỷ) áp dụng cho **mọi chu kỳ**; chỉ đặt cho danh mục **chi tiêu** của user; mỗi danh mục một ngân sách (tạo lần nữa → `409 budget_exists`). Xoá danh mục thì ngân sách của nó cũng bị xoá.
+Ngân sách: hạn mức (`limit`, số nguyên VND, 1 → 999 tỷ) áp dụng cho **mọi chu kỳ**; chỉ đặt cho danh mục **chi tiêu** của user; mỗi danh mục một ngân sách (tạo lần nữa → `409 budget_exists`). Xoá danh mục thì ngân sách của nó cũng bị xoá. `priority` (mức ưu tiên) là `essential` (thiết yếu), `important` (quan trọng, mặc định) hoặc `optional` (có thể cắt giảm).
 
 Mục tiêu: `name` ≤ 40 ký tự; `target` 1 → 999 tỷ; `saved` 0 → 999 tỷ (được vượt `target` — tức là đã đạt); `deadline` dạng `YYYY-MM` (không bắt buộc); `color` là một trong `blue`, `orange`, `violet`, `pink`, `teal`, `green`; `image` (không bắt buộc) là data URL `data:image/jpeg|png|webp;base64,…`, tối đa ~800 KB. `saved` do người dùng tự nạp/rút, không liên quan tới giao dịch. Nạp/rút khoá dòng trong DB nên nhiều lần nạp cùng lúc đều được cộng đủ. Trong response, `deadline`/`image` không có mặt khi chưa đặt.
 

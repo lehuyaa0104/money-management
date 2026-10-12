@@ -1,7 +1,10 @@
-import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { useId, useState } from 'react'
+import { Controller, useForm, useWatch } from 'react-hook-form'
+import type { BudgetPriority } from '@/features/budgets/budgetApi'
+import { BUDGET_PRIORITIES } from '@/features/budgets/budgetPriority'
 import type { CategoryMeta } from '@/features/categories/meta'
 import { ApiError } from '@/shared/api/apiClient'
+import { cn } from '@/shared/utils/cn'
 import { formatCurrency } from '@/shared/utils/format'
 import Alert from '@/shared/ui/Alert'
 import BottomSheet from '@/shared/ui/BottomSheet'
@@ -13,9 +16,11 @@ interface BudgetSheetProps {
   category: CategoryMeta
   /** Current limit, or undefined when setting one for the first time. */
   limit?: number
+  /** Current priority; new budgets start as "important". */
+  priority?: BudgetPriority
   spent: number
   /** Async; on failure the sheet shows the error and stays open. */
-  onSave: (limit: number) => Promise<void>
+  onSave: (limit: number, priority: BudgetPriority) => Promise<void>
   onRemove: () => Promise<void>
   onClose: () => void
 }
@@ -23,27 +28,31 @@ interface BudgetSheetProps {
 interface FormValues {
   /** Digits only; shown with thousand separators. */
   limit: string
+  priority: BudgetPriority
 }
 
-export default function BudgetSheet({ category, limit, spent, onSave, onRemove, onClose }: BudgetSheetProps) {
+export default function BudgetSheet({ category, limit, priority = 'important', spent, onSave, onRemove, onClose }: BudgetSheetProps) {
   const {
     control,
     handleSubmit,
+    setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     mode: 'onChange',
-    defaultValues: { limit: limit ? String(limit) : '' },
+    defaultValues: { limit: limit ? String(limit) : '', priority },
   })
+  const selected = useWatch({ control, name: 'priority' })
   const [removing, setRemoving] = useState(false)
+  const priorityLabelId = useId()
   const busy = isSubmitting || removing
 
   const showError = (err: unknown) =>
     setError('root.server', { message: err instanceof ApiError ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại' })
 
-  const save = async ({ limit: value }: FormValues) => {
+  const save = async ({ limit: value, priority: chosen }: FormValues) => {
     try {
-      await onSave(Number(value))
+      await onSave(Number(value), chosen)
     } catch (err) {
       showError(err)
     }
@@ -116,6 +125,33 @@ export default function BudgetSheet({ category, limit, spent, onSave, onRemove, 
             />
           )}
         />
+        <div className="flex flex-col gap-2">
+          <Text as="span" variant="label" tone="muted" id={priorityLabelId}>
+            Mức ưu tiên
+          </Text>
+          <div role="radiogroup" aria-labelledby={priorityLabelId} className="flex flex-col gap-2">
+            {BUDGET_PRIORITIES.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                role="radio"
+                aria-checked={selected === p.value}
+                onClick={() => setValue('priority', p.value)}
+                className={cn(
+                  'rounded-2xl border-2 px-4 py-3 text-left transition',
+                  selected === p.value ? 'border-primary bg-primary-soft/50' : 'border-gray-100 bg-white',
+                )}
+              >
+                <Text as="span" weight="bold" className="block">
+                  {p.label}
+                </Text>
+                <Text as="span" variant="caption" tone="muted" className="block">
+                  {p.hint}
+                </Text>
+              </button>
+            ))}
+          </div>
+        </div>
       </form>
     </BottomSheet>
   )

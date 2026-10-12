@@ -10,6 +10,12 @@ import (
 type CreateBudgetInput struct {
 	CategoryID string
 	Limit      int64
+	Priority   string // "" = domain.BudgetImportant
+}
+
+type UpdateBudgetInput struct {
+	Limit    int64
+	Priority string // "" keeps the current one (clients from before priorities send none)
 }
 
 type BudgetUsecase struct {
@@ -27,7 +33,10 @@ func NewBudgetUsecase(budgets domain.BudgetRepository, categories domain.Categor
 func (u *BudgetUsecase) Create(ctx context.Context, userID string, in CreateBudgetInput) (*domain.Budget, error) {
 	now := u.now()
 	budget := &domain.Budget{
-		ID: u.newID(), UserID: userID, CategoryID: in.CategoryID, Limit: in.Limit, CreatedAt: now, UpdatedAt: now,
+		ID: u.newID(), UserID: userID, CategoryID: in.CategoryID, Limit: in.Limit, Priority: in.Priority, CreatedAt: now, UpdatedAt: now,
+	}
+	if budget.Priority == "" {
+		budget.Priority = domain.BudgetImportant
 	}
 	if err := budget.Validate(); err != nil {
 		return nil, err
@@ -62,18 +71,21 @@ func (u *BudgetUsecase) List(ctx context.Context, userID, month string, startDay
 	return u.budgets.ListWithSpent(ctx, userID, from, to)
 }
 
-// UpdateLimit changes a budget's monthly limit.
-func (u *BudgetUsecase) UpdateLimit(ctx context.Context, userID, id string, limit int64) (*domain.Budget, error) {
+// Update changes a budget's monthly limit and priority.
+func (u *BudgetUsecase) Update(ctx context.Context, userID, id string, in UpdateBudgetInput) (*domain.Budget, error) {
 	budget, err := u.budgets.FindByID(ctx, userID, id)
 	if err != nil {
 		return nil, err
 	}
-	budget.Limit = limit
+	budget.Limit = in.Limit
+	if in.Priority != "" {
+		budget.Priority = in.Priority
+	}
 	budget.UpdatedAt = u.now()
 	if err := budget.Validate(); err != nil {
 		return nil, err
 	}
-	if err := u.budgets.UpdateLimit(ctx, budget); err != nil {
+	if err := u.budgets.Update(ctx, budget); err != nil {
 		return nil, err
 	}
 	return budget, nil

@@ -10,12 +10,22 @@ var (
 	ErrBudgetCategoryNotExpense = Validation("budget_category_not_expense", "Chỉ đặt ngân sách cho danh mục chi tiêu")
 )
 
+// How much a budget matters when money runs short: cut the optional ones first.
+const (
+	BudgetEssential = "essential" // thiết yếu
+	BudgetImportant = "important" // quan trọng (default)
+	BudgetOptional  = "optional"  // có thể cắt giảm
+)
+
+var budgetPriorities = map[string]bool{BudgetEssential: true, BudgetImportant: true, BudgetOptional: true}
+
 // Budget is a monthly spending limit for one expense category; it applies to every month.
 type Budget struct {
 	ID         string
 	UserID     string
 	CategoryID string
 	Limit      int64 // VND per month
+	Priority   string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -52,7 +62,8 @@ type BudgetRepository interface {
 	ListWithSpent(ctx context.Context, userID string, from, to time.Time) ([]BudgetUsage, error)
 	// FindByID returns ErrNotFound if the budget doesn't exist or isn't the user's.
 	FindByID(ctx context.Context, userID, id string) (*Budget, error)
-	UpdateLimit(ctx context.Context, budget *Budget) error
+	// Update saves the limit and priority; ErrNotFound if it isn't the user's.
+	Update(ctx context.Context, budget *Budget) error
 	// Delete returns ErrNotFound if the budget doesn't exist or isn't the user's.
 	Delete(ctx context.Context, userID, id string) error
 }
@@ -66,6 +77,9 @@ func (b *Budget) Validate() error {
 	}
 	if b.Limit > MaxAmount {
 		return Validation("limit_too_large", "Hạn mức quá lớn")
+	}
+	if !budgetPriorities[b.Priority] {
+		return Validation("priority_invalid", "Mức ưu tiên không hợp lệ")
 	}
 	return nil
 }

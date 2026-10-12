@@ -1,10 +1,14 @@
 import { api } from '@/shared/api/apiClient'
 
+/** How much a budget matters when money runs short. */
+export type BudgetPriority = 'essential' | 'important' | 'optional'
+
 export interface Budget {
   id: string
   categoryId: string
   /** VND per month; applies to every month. */
   limit: number
+  priority: BudgetPriority
   createdAt: string
   updatedAt: string
 }
@@ -22,13 +26,13 @@ export async function listBudgets(month: string, startDay: number, signal?: Abor
   return data.budgets
 }
 
-export async function createBudget(categoryId: string, limit: number): Promise<Budget> {
-  const { data } = await api.post<{ budget: Budget }>('/budgets', { categoryId, limit })
+export async function createBudget(categoryId: string, limit: number, priority: BudgetPriority): Promise<Budget> {
+  const { data } = await api.post<{ budget: Budget }>('/budgets', { categoryId, limit, priority })
   return data.budget
 }
 
-export async function updateBudget(id: string, limit: number): Promise<Budget> {
-  const { data } = await api.put<{ budget: Budget }>(`/budgets/${encodeURIComponent(id)}`, { limit })
+export async function updateBudget(id: string, limit: number, priority: BudgetPriority): Promise<Budget> {
+  const { data } = await api.put<{ budget: Budget }>(`/budgets/${encodeURIComponent(id)}`, { limit, priority })
   return data.budget
 }
 
