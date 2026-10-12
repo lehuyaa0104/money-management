@@ -17,6 +17,27 @@
   }
 }
 
+/*
+ * iOS (every iPhone browser runs WebKit) draws date/time inputs as native controls with
+ * a fixed minimum width that ignores w-full, so they overflow narrow screens. Plain
+ * appearance lets them shrink to their box; the value stays left-aligned like other
+ * fields. The native picker still opens on tap. Scoped to iOS so desktop browsers keep
+ * their calendar icon.
+ */
+@supports (-webkit-touch-callout: none) {
+  input[type='date'],
+  input[type='month'],
+  input[type='time'] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+  }
+
+  input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
+
 /* Padding that clears the iPhone notch / home indicator (needs viewport-fit=cover) */
 @utility pt-safe-hero {
   padding-top: calc(env(safe-area-inset-top, 0px) + 4rem);
