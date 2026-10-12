@@ -28,11 +28,12 @@ export default function AssetsSummaryCard({ summary }: { summary: PortfolioSumma
             <span className="text-white/60">lãi/lỗ đầu tư</span>
           </p>
         )}
-        <dl className="mt-5 grid grid-cols-3 gap-2">
+        <dl className="mt-5 grid grid-cols-2 gap-2">
           {[
             ['Đầu tư', formatCompactCurrency(summary.invested), ''],
             ['Tiết kiệm', formatCompactCurrency(summary.savings), ''],
-            ['Lãi/tháng', `+${formatCompactCurrency(summary.monthlyInterest)}`, 'text-green-400'],
+            ['Khoản nợ', summary.debts ? `−${formatCompactCurrency(summary.debts)}` : formatCompactCurrency(0), summary.debts ? 'text-red-400' : ''],
+            ['Lãi tiết kiệm/tháng', `+${formatCompactCurrency(summary.monthlyInterest)}`, 'text-green-400'],
           ].map(([label, value, tone]) => (
             <div key={label} className="min-w-0 rounded-2xl bg-white/10 p-3">
               <dt className="text-xs text-white/60">{label}</dt>

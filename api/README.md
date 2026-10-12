@@ -50,7 +50,7 @@ Mọi lỗi trả về dạng `{"error": {"code": "...", "message": "..."}}`, `m
 | `POST` | `/api/v1/goals/:id/deposit` | `{amount}` → `200 {goal}` (nạp thêm vào `saved`) |
 | `POST` | `/api/v1/goals/:id/withdraw` | `{amount}` → `200 {goal}` (rút ra; vượt `saved` → `400 withdraw_too_large`) |
 | `DELETE` | `/api/v1/goals/:id` | Xoá mục tiêu → `204` (`404` nếu không tồn tại hoặc của người khác) |
-| `GET` | `/api/v1/assets` | Tài sản của user (tiết kiệm, chứng chỉ quỹ), mới nhất trước → `{assets}` |
+| `GET` | `/api/v1/assets` | Tài sản của user (tiết kiệm, chứng chỉ quỹ, khoản nợ), mới nhất trước → `{assets}` |
 | `POST` | `/api/v1/assets` | `{kind, name, details}` → `201 {asset}` |
 | `PUT` | `/api/v1/assets/:id` | Cùng body như khi tạo → `200 {asset}`; thay toàn bộ `kind`, `name`, `details` |
 | `DELETE` | `/api/v1/assets/:id` | Xoá tài sản → `204` (`404` nếu không tồn tại hoặc của người khác) |
@@ -110,6 +110,7 @@ make test-api
 Tài sản: phần chung (`kind`, `name` ≤ 60 ký tự) là cột thường; phần riêng của từng loại nằm trong `details` (cột `JSON` của MySQL). Server kiểm tra `details` theo `kind`, từ chối field lạ (`400 details_invalid`) và lưu lại ở dạng chuẩn. Ngày tháng dạng `YYYY-MM-DD`, được phép muộn hơn ngày UTC của server tối đa 1 ngày (giờ Việt Nam đi trước). Lãi, ngày đáo hạn, số CCQ đang giữ, giá vốn… **không lưu**, web tự tính từ `details`.
 
 - `kind: "savings"` (sổ tiết kiệm): `{bank, amount, rate, termMonths, openedAt, interestPayout, onMaturity}`. `bank` ≤ 40 ký tự; `amount` 1 → 999 tỷ; `rate` 0 → 100 (%/năm); `termMonths` 0 → 120 (0 = không kỳ hạn); `interestPayout` là `maturity`/`monthly`/`upfront`; `onMaturity` là `rollover_all`/`rollover_principal`/`close`.
+- `kind: "debt"` (khoản nợ, trừ vào tài sản ròng): `{type, lender, amount, rate, startDate, dueDate, payments}`. `type` là `bank`/`credit_card`/`personal`/`other`; `lender` ≤ 40 ký tự; `amount` (gốc vay) 1 → 999 tỷ; `rate` 0 → 100 (%/năm, chỉ để tham khảo); `dueDate` có thể rỗng, nếu có thì không trước `startDate`; `payments` tối đa 1000 dòng `{id, date, amount}` (gốc đã trả), tổng vượt `amount` → `400 debt_overpaid`.
 - `kind: "fund"` (chứng chỉ quỹ mở): `{code, manager, nav, navDate, transactions}`. `code` ≤ 15 ký tự (tự viết hoa); `nav` ≥ 0 (VND/CCQ, được có số lẻ), `navDate` có thể rỗng; `transactions` tối đa 1000 dòng `{id, type: buy|sell, date, units, amount, nav}` với `id` không trùng, `units` > 0 (được có số lẻ), `amount` 1 → 999 tỷ, `nav` > 0. Xếp theo ngày mà có lần bán vượt số CCQ đang có lúc đó → `400 fund_oversold`.
 
 NAV quỹ: server lấy từ API mà web của Fmarket (fmarket.vn) đang dùng (không phải API công bố chính thức, có thể đổi bất cứ lúc nào) và giữ kết quả 1 giờ, nên mỗi quỹ bị gọi tối đa 1 lần/giờ. Lần lấy lại bị lỗi thì vẫn trả kết quả cũ. Fmarket vẫn dùng mã cũ của Dragon Capital (DCDS = VFMVF1, DCDE = VFMVF4, DCBF = VFMVFB, DCIP = VFMVFC), bảng đối chiếu nằm trong `infrastructure/fmarket`. Web dùng NAV mới nhất trong ba nguồn: NAV này, NAV người dùng tự nhập, NAV của giao dịch gần nhất.

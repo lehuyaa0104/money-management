@@ -3,9 +3,9 @@ import type { AssetKind } from '@/features/assets/useAssets'
 import { formatCurrency } from '@/shared/utils/format'
 import SectionTitle from './SectionTitle'
 
-/** Share of the net worth in each kind of asset; kinds with nothing are left out. */
+/** Share of what's owned in each kind of asset (debts aren't assets); kinds with nothing are left out. */
 export default function AllocationBar({ byKind }: { byKind: Record<AssetKind, number> }) {
-  const kinds = (Object.keys(ASSET_KINDS) as AssetKind[]).filter((k) => byKind[k] > 0)
+  const kinds = (Object.keys(ASSET_KINDS) as AssetKind[]).filter((k) => k !== 'debt' && byKind[k] > 0)
   return (
     <section className="flex flex-col gap-3">
       <SectionTitle title="Phân bổ tài sản" />

@@ -7,6 +7,7 @@ const TABS: { value: AssetTab; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
   { value: 'fund', label: 'Chứng chỉ quỹ' },
   { value: 'savings', label: 'Tiết kiệm' },
+  { value: 'debt', label: 'Khoản nợ' },
 ]
 
 export default function AssetTabs({ value, onChange }: { value: AssetTab; onChange: (tab: AssetTab) => void }) {

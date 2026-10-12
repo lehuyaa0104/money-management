@@ -4,6 +4,8 @@ import TabLayout from './shared/layout/TabLayout'
 import AddTransactionPage from './features/transactions/pages/AddTransactionPage'
 import AssetsPage from './features/assets/pages/AssetsPage'
 import AssetsProvider from './features/assets/AssetsProvider'
+import DebtDetailPage from './features/assets/debts/pages/DebtDetailPage'
+import DebtFormPage from './features/assets/debts/pages/DebtFormPage'
 import FundDetailPage from './features/assets/funds/pages/FundDetailPage'
 import SavingsFormPage from './features/assets/savings/pages/SavingsFormPage'
 import AnalyticsPage from './features/analytics/pages/AnalyticsPage'
@@ -43,6 +45,7 @@ export default function App() {
                   <Route path="/budget/savings" element={<AssetsPage />} />
                   <Route path="/budget/savings/funds/new/:code" element={<FundDetailPage />} />
                   <Route path="/budget/savings/funds/:id" element={<FundDetailPage />} />
+                <Route path="/budget/savings/debts/:id" element={<DebtDetailPage />} />
                 </Route>
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
@@ -51,6 +54,8 @@ export default function App() {
               <Route element={<AssetsProvider />}>
                 <Route path="/budget/savings/accounts/new" element={<SavingsFormPage />} />
                 <Route path="/budget/savings/accounts/:id" element={<SavingsFormPage />} />
+              <Route path="/budget/savings/debts/new" element={<DebtFormPage />} />
+              <Route path="/budget/savings/debts/:id/edit" element={<DebtFormPage />} />
               </Route>
               <Route path="/transfer" element={<ComingSoonPage title="Chuyển tiền" standalone />} />
               <Route path="/notifications" element={<ComingSoonPage title="Thông báo" standalone />} />

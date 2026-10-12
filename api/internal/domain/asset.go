@@ -15,6 +15,7 @@ type AssetKind string
 const (
 	AssetSavings AssetKind = "savings" // bank term deposit (sổ tiết kiệm)
 	AssetFund    AssetKind = "fund"    // open-ended fund units (chứng chỉ quỹ mở)
+	AssetDebt    AssetKind = "debt"    // money the user owes (khoản nợ); subtracted from net worth
 
 	AssetNameMax          = 60
 	AssetBankMax          = 40
@@ -29,6 +30,7 @@ const (
 var (
 	ErrAssetDetailsInvalid = Validation("details_invalid", "Thông tin tài sản không hợp lệ")
 	ErrFundOversold        = Validation("fund_oversold", "Có giao dịch bán nhiều hơn số chứng chỉ quỹ đang có")
+	ErrDebtOverpaid        = Validation("debt_overpaid", "Tổng số tiền đã trả vượt quá số tiền vay")
 )
 
 // Asset is a savings deposit or a fund holding. Fields every kind has are columns;
@@ -88,6 +90,26 @@ type FundTransaction struct {
 	Nav    float64 `json:"nav"`
 }
 
+var debtTypes = map[string]bool{"bank": true, "credit_card": true, "personal": true, "other": true}
+
+// DebtDetails describes money owed and every repayment of principal; what's left is derived.
+type DebtDetails struct {
+	Type      string        `json:"type"`      // bank | credit_card | personal | other
+	Lender    string        `json:"lender"`    // bank or person lent by
+	Amount    int64         `json:"amount"`    // principal borrowed, VND
+	Rate      float64       `json:"rate"`      // percent per year, for reference; 0 = none
+	StartDate string        `json:"startDate"` // YYYY-MM-DD
+	DueDate   string        `json:"dueDate"`   // YYYY-MM-DD, or "" with no deadline
+	Payments  []DebtPayment `json:"payments"`
+}
+
+// DebtPayment is principal repaid on a date (interest paid isn't tracked).
+type DebtPayment struct {
+	ID     string `json:"id"` // made by the client, unique within the debt
+	Date   string `json:"date"`
+	Amount int64  `json:"amount"`
+}
+
 // Prepare trims the asset, checks Details against Kind and rewrites them in canonical
 // form (trimmed, no unknown fields). Dates may be at most a day after now, since the
 // client's calendar day can be ahead of UTC.
@@ -110,6 +132,15 @@ func (a *Asset) Prepare(now time.Time) error {
 		details = d
 	case AssetFund:
 		var d FundDetails
+		if err := decodeStrict(a.Details, &d); err != nil {
+			return err
+		}
+		if err := d.normalize(latest); err != nil {
+			return err
+		}
+		details = d
+	case AssetDebt:
+		var d DebtDetails
 		if err := decodeStrict(a.Details, &d); err != nil {
 			return err
 		}
@@ -231,6 +262,58 @@ func validateDate(date, latest string) error {
 	}
 	if date > latest {
 		return Validation("date_in_future", "Ngày không được sau hôm nay")
+	}
+	return nil
+}
+
+func (d *DebtDetails) normalize(latest string) error {
+	d.Lender = strings.TrimSpace(d.Lender)
+	switch {
+	case !debtTypes[d.Type]:
+		return Validation("debt_type_invalid", "Loại khoản nợ không hợp lệ")
+	case d.Lender == "":
+		return Validation("lender_required", "Vui lòng nhập bên cho vay")
+	case utf8.RuneCountInString(d.Lender) > AssetBankMax:
+		return Validation("lender_too_long", "Tên bên cho vay tối đa 40 ký tự")
+	case d.Amount <= 0 || d.Amount > MaxAmount:
+		return Validation("amount_invalid", "Số tiền vay không hợp lệ")
+	case d.Rate < 0 || d.Rate > 100:
+		return Validation("rate_invalid", "Lãi suất phải từ 0 đến 100%")
+	case len(d.Payments) > AssetFundTxMax:
+		return Validation("payments_too_many", "Quá nhiều lần trả nợ")
+	}
+	if err := validateDate(d.StartDate, latest); err != nil {
+		return err
+	}
+	// A deadline may be in the future, so only its format is checked.
+	if d.DueDate != "" {
+		if _, err := time.Parse(DateLayout, d.DueDate); err != nil {
+			return Validation("date_invalid", "Ngày không hợp lệ")
+		}
+		if d.DueDate < d.StartDate {
+			return Validation("due_date_invalid", "Hạn trả phải sau ngày vay")
+		}
+	}
+	if d.Payments == nil {
+		d.Payments = []DebtPayment{} // stored and returned as [], never null
+	}
+	ids := make(map[string]bool, len(d.Payments))
+	var paid int64
+	for _, p := range d.Payments {
+		switch {
+		case p.ID == "" || len(p.ID) > assetFundTxIDMax || ids[p.ID]:
+			return Validation("payment_id_invalid", "Mã lần trả không hợp lệ hoặc bị trùng")
+		case p.Amount <= 0 || p.Amount > MaxAmount:
+			return Validation("amount_invalid", "Số tiền trả không hợp lệ")
+		}
+		if err := validateDate(p.Date, latest); err != nil {
+			return err
+		}
+		ids[p.ID] = true
+		paid += p.Amount
+	}
+	if paid > d.Amount {
+		return ErrDebtOverpaid
 	}
 	return nil
 }
